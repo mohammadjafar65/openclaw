@@ -1,0 +1,43 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/softoatk/mzistudio.com/openclaw"
+PassengerBaseURI "/openclaw"
+PassengerNodejs "/home/softoatk/nodevenv/mzistudio.com/openclaw/18/bin/node"
+PassengerAppType node
+PassengerStartupFile app.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# # BEGIN WordPress
+# # The directives (lines) between "BEGIN WordPress" and "END WordPress" are
+# # dynamically generated, and should only be modified via WordPress filters.
+# # Any changes to the directives between these markers will be overwritten.
+# <IfModule mod_rewrite.c>
+# RewriteEngine On
+# RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+# RewriteBase /mzistudio/
+# RewriteRule ^index\.php$ - [L]
+# RewriteCond %{REQUEST_FILENAME} !-f
+# RewriteCond %{REQUEST_FILENAME} !-d
+# RewriteRule . /mzistudio/index.php [L]
+# </IfModule>
+# # END WordPress
+# # OpenClaw — cPanel Phusion Passenger configuration
+# # Place this in your public_html or app root directory
+# PassengerNodejs /usr/local/bin/node
+# PassengerAppRoot /home/softoatk/mzistudio.com/openclaw
+# PassengerAppType node
+# PassengerStartupFile app.js
+# # Force HTTPS
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# # Proxy all requests to Node.js
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteCond %{REQUEST_FILENAME} !-f
+#     RewriteRule ^(.*)$ http://localhost:3000/$1 [P,L]
+# </IfModule>
+# # Security headers
+# <IfModule mod_headers.c>
+#     Header always set X-Content-Type-Options "nosniff"
+#     Header always set X-Frame-Options "DENY"
+#     Header always set X-XSS-Protection "1; mode=block"
+# </IfModule>

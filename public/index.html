@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenClaw — B2B Lead Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2d3250;
+  --accent:#6c63ff;--accent2:#00d4aa;--accent3:#ff6b6b;--accent4:#ffd166;
+  --text:#e8eaf6;--muted:#8892b0;--sidebar:220px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:14px;display:flex;min-height:100vh;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;border:none;font-family:inherit}
+
+/* LOGIN */
+#login-screen{display:flex;align-items:center;justify-content:center;width:100%;min-height:100vh}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px;width:380px;text-align:center}
+.login-logo{font-size:28px;font-weight:700;color:var(--accent);margin-bottom:8px}
+.login-sub{color:var(--muted);font-size:13px;margin-bottom:32px}
+.form-group{margin-bottom:16px;text-align:left}
+.form-group label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.form-group input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;outline:none;transition:border-color .2s}
+.form-group input:focus{border-color:var(--accent)}
+.btn-primary{background:var(--accent);color:#fff;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:600;width:100%;margin-top:8px}
+.login-error{color:var(--accent3);font-size:12px;margin-top:12px;display:none}
+
+/* APP */
+#app{display:none;width:100%;min-height:100vh}
+.sidebar{width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.sidebar-logo{padding:20px;font-size:18px;font-weight:700;color:var(--accent);border-bottom:1px solid var(--border)}
+.sidebar-logo span{font-size:10px;font-weight:400;color:var(--muted);display:block;margin-top:1px}
+.sidebar-nav{flex:1;padding:10px 0}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;color:var(--muted);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(108,99,255,.08)}
+.nav-item svg{width:16px;height:16px;flex-shrink:0}
+.nav-badge{background:var(--accent3);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:auto}
+.nav-badge.live{background:var(--accent2);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.sidebar-footer{padding:14px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+.main-content{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.page-title{font-size:15px;font-weight:600}
+.topbar-right{display:flex;gap:10px;align-items:center}
+.content{padding:24px;flex:1}
+.page{display:none}
+.page.active{display:block}
+
+/* COMPONENTS */
+.grid{display:grid;gap:14px}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-2{grid-template-columns:1fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.card-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;font-weight:600}
+.metric{font-size:30px;font-weight:700;line-height:1;margin-bottom:3px}
+.metric-sub{font-size:11px;color:var(--muted)}
+
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-priority{background:rgba(255,209,102,.15);color:var(--accent4)}
+.badge-standard{background:rgba(108,99,255,.15);color:var(--accent)}
+.badge-nurture{background:rgba(0,212,170,.15);color:var(--accent2)}
+.badge-archive{background:rgba(255,255,255,.06);color:var(--muted)}
+.badge-won{background:rgba(0,212,170,.2);color:var(--accent2)}
+.badge-dnc{background:rgba(255,107,107,.15);color:var(--accent3)}
+.badge-new{background:rgba(108,99,255,.1);color:var(--accent)}
+.badge-none{background:rgba(0,212,170,.15);color:var(--accent2)}
+.badge-weak{background:rgba(255,209,102,.15);color:var(--accent4)}
+.badge-active{background:rgba(0,212,170,.12);color:var(--accent2)}
+.badge-unknown{background:rgba(255,255,255,.06);color:var(--muted)}
+
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:9px 12px;border-bottom:1px solid var(--border)}
+td{padding:11px 12px;border-bottom:1px solid rgba(45,50,80,.4);font-size:13px;vertical-align:middle}
+tr:hover td{background:rgba(255,255,255,.02)}
+tr:last-child td{border-bottom:none}
+
+.btn{padding:7px 14px;border-radius:7px;font-size:13px;font-weight:500;transition:all .15s}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-accent:hover{opacity:.9}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:rgba(255,107,107,.12);color:var(--accent3);border:1px solid rgba(255,107,107,.25)}
+.btn-success{background:rgba(0,212,170,.12);color:var(--accent2);border:1px solid rgba(0,212,170,.25)}
+.btn-green{background:var(--accent2);color:#0f1117;font-weight:700}
+
+.input{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px 12px;color:var(--text);font-size:13px;font-family:inherit;outline:none;transition:border-color .2s;width:100%}
+.input:focus{border-color:var(--accent)}
+select.input{cursor:pointer}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px;width:500px;max-height:88vh;overflow-y:auto}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:18px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.form-row{display:grid;gap:10px;margin-bottom:12px}
+.form-row.cols-2{grid-template-columns:1fr 1fr}
+label.field-label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500}
+
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:14px}
+.alert-success{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);color:var(--accent2)}
+.alert-error{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.3);color:var(--accent3)}
+.alert-info{background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);color:var(--accent)}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-state h3{font-size:15px;color:var(--text);margin-bottom:6px}
+
+.loading{color:var(--muted);text-align:center;padding:40px}
+.spin{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:6px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ═══════════════════════════════════════════════════
+   LIVE SCRAPER
+═══════════════════════════════════════════════════ */
+.scraper-layout{display:grid;grid-template-columns:340px 1fr;gap:16px;height:calc(100vh - 110px)}
+
+/* Config Panel */
+.scraper-config{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:0;overflow-y:auto}
+.scraper-config h3{font-size:14px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.scraper-config h3::before{content:'';width:3px;height:16px;background:var(--accent2);border-radius:2px;display:inline-block}
+.config-field{margin-bottom:12px}
+.config-field .field-label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.config-divider{height:1px;background:var(--border);margin:14px 0}
+.filter-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:12px;color:var(--muted)}
+.filter-row span{flex:1}
+.filter-row input{width:70px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;text-align:center;outline:none}
+.filter-row input:focus{border-color:var(--accent)}
+.btn-start{width:100%;padding:12px;border-radius:9px;font-size:14px;font-weight:700;background:linear-gradient(135deg,var(--accent2),#00a085);color:#0f1117;margin-top:8px;transition:all .2s}
+.btn-start:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,212,170,.3)}
+.btn-start:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-stop{width:100%;padding:12px;border-radius:9px;font-size:14px;font-weight:700;background:rgba(255,107,107,.15);color:var(--accent3);border:1px solid rgba(255,107,107,.3);margin-top:8px}
+
+/* Stats bar */
+.live-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px}
+.stat-pill{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.stat-pill .num{font-size:22px;font-weight:800;line-height:1}
+.stat-pill .lbl{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.06em}
+.stat-discovered .num{color:var(--accent)}
+.stat-passed .num{color:var(--accent2)}
+.stat-filtered .num{color:var(--accent4)}
+.stat-saved .num{color:#a78bfa}
+.stat-errors .num{color:var(--accent3)}
+
+/* Status bar */
+.status-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:13px}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0}
+.status-dot.active{background:var(--accent2);animation:pulse 1s infinite}
+.status-dot.done{background:var(--accent2)}
+.status-dot.error{background:var(--accent3)}
+.status-msg{flex:1;color:var(--text)}
+.status-phase{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+
+/* Feed */
+.feed-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.feed-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.feed-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px}
+.live-indicator{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--accent2);font-weight:600}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--accent2);animation:pulse 1s infinite}
+.feed-body{flex:1;overflow-y:auto;padding:10px}
+.feed-tabs{display:flex;gap:0;padding:0 14px;border-bottom:1px solid var(--border)}
+.feed-tab{padding:8px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s}
+.feed-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* Feed items */
+.feed-item{border-radius:8px;padding:11px 13px;margin-bottom:8px;border:1px solid;animation:slideIn .3s ease;font-size:13px}
+@keyframes slideIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.feed-item.discovered{background:rgba(108,99,255,.05);border-color:rgba(108,99,255,.2)}
+.feed-item.saved{background:rgba(0,212,170,.05);border-color:rgba(0,212,170,.25)}
+.feed-item.filtered{background:rgba(255,209,102,.04);border-color:rgba(255,209,102,.15)}
+.feed-item.error{background:rgba(255,107,107,.05);border-color:rgba(255,107,107,.2)}
+.feed-item.status{background:rgba(255,255,255,.02);border-color:var(--border)}
+.feed-item-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.feed-icon{font-size:14px}
+.feed-name{font-weight:600;flex:1}
+.feed-time{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.feed-meta{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.feed-meta-item{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--muted)}
+.feed-meta-item svg{width:11px;height:11px}
+.feed-reason{font-size:11px;color:var(--accent4);margin-top:4px}
+.feed-score{display:flex;align-items:center;gap:8px;margin-top:6px}
+.score-num{font-size:13px;font-weight:700}
+.score-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px}
+.score-bar-fill{height:100%;border-radius:2px;transition:width .4s}
+
+/* Saved leads table inside feed */
+.saved-table{width:100%;border-collapse:collapse;font-size:12px}
+.saved-table th{padding:6px 10px;text-align:left;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+.saved-table td{padding:8px 10px;border-bottom:1px solid rgba(45,50,80,.3);vertical-align:top}
+.saved-table tr:last-child td{border-bottom:none}
+.star{color:var(--accent4)}
+
+/* Niche presets */
+.presets{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.preset-tag{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:11px;cursor:pointer;color:var(--muted);transition:.15s}
+.preset-tag:hover{border-color:var(--accent2);color:var(--accent2)}
+
+/* score colors */
+.score-priority{color:var(--accent4)}
+.score-standard{color:var(--accent)}
+.score-low{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">⚡ OpenClaw</div>
+    <div class="login-sub">B2B Lead Generation System</div>
+    <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="admin@yourdomain.com"></div>
+    <div class="form-group"><label>Password</label><input type="password" id="login-password" onkeydown="if(event.key==='Enter')login()"></div>
+    <button class="btn-primary" onclick="login()">Sign In</button>
+    <div id="login-error" class="login-error">Invalid email or password</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav class="sidebar">
+    <div class="sidebar-logo">⚡ OpenClaw<span>Lead Automation</span></div>
+    <div class="sidebar-nav">
+      <div class="nav-item" onclick="showPage('dashboard')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('live-scraper')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Live Scraper
+        <span class="nav-badge live" id="live-badge" style="display:none">LIVE</span>
+      </div>
+      <div class="nav-item" onclick="showPage('campaigns')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
+        Campaigns
+      </div>
+      <div class="nav-item" onclick="showPage('leads')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+        Leads
+      </div>
+      <div class="nav-item" onclick="showPage('outreach')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        Outreach
+      </div>
+      <div class="nav-item" onclick="showPage('replies')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Replies
+      </div>
+      <div class="nav-item" onclick="showPage('settings')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        Settings
+      </div>
+    </div>
+    <div class="sidebar-footer" id="sidebar-user"></div>
+  </nav>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="topbar-right">
+        <div id="topbar-action"></div>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Sign out</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page active">
+        <div id="dash-content"><div class="loading"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+      <!-- LIVE SCRAPER -->
+      <div id="page-live-scraper" class="page">
+        <div class="scraper-layout">
+
+          <!-- Config -->
+          <div class="scraper-config">
+            <h3>Search Configuration</h3>
+
+            <div class="config-field">
+              <label class="field-label">Business Niche *</label>
+              <input class="input" id="sc-niche" placeholder="e.g. Restaurant, Dentist, Gym">
+              <div class="presets">
+                <span class="preset-tag" onclick="setNiche('Restaurant')">Restaurant</span>
+                <span class="preset-tag" onclick="setNiche('Dental Clinic')">Dentist</span>
+                <span class="preset-tag" onclick="setNiche('Auto Repair')">Auto Repair</span>
+                <span class="preset-tag" onclick="setNiche('Gym')">Gym</span>
+                <span class="preset-tag" onclick="setNiche('Law Firm')">Law Firm</span>
+                <span class="preset-tag" onclick="setNiche('Real Estate')">Real Estate</span>
+                <span class="preset-tag" onclick="setNiche('Hair Salon')">Hair Salon</span>
+                <span class="preset-tag" onclick="setNiche('Plumber')">Plumber</span>
+              </div>
+            </div>
+
+            <div class="config-field">
+              <label class="field-label">Micro-Niche (optional)</label>
+              <input class="input" id="sc-micro" placeholder="e.g. Italian restaurant, DUI attorney">
+            </div>
+
+            <div class="config-field">
+              <label class="field-label">Target Region / City *</label>
+              <input class="input" id="sc-region" placeholder="e.g. Miami, FL or London, UK">
+              <div class="presets">
+                <span class="preset-tag" onclick="setRegion('Miami, FL')">Miami</span>
+                <span class="preset-tag" onclick="setRegion('New York, NY')">New York</span>
+                <span class="preset-tag" onclick="setRegion('Los Angeles, CA')">Los Angeles</span>
+                <span class="preset-tag" onclick="setRegion('Chicago, IL')">Chicago</span>
+                <span class="preset-tag" onclick="setRegion('London, UK')">London</span>
+                <span class="preset-tag" onclick="setRegion('Dubai, UAE')">Dubai</span>
+              </div>
+            </div>
+
+            <div class="config-field">
+              <label class="field-label">Search Radius</label>
+              <select class="input" id="sc-radius">
+                <option value="10">10 km</option>
+                <option value="25" selected>25 km</option>
+                <option value="50">50 km</option>
+                <option value="100">100 km</option>
+              </select>
+            </div>
+
+            <div class="config-field">
+              <label class="field-label">Campaign (optional)</label>
+              <select class="input" id="sc-campaign">
+                <option value="">No campaign</option>
+              </select>
+            </div>
+
+            <div class="config-divider"></div>
+            <div class="card-title">Quality Filters</div>
+
+            <div class="filter-row">
+              <span>⭐ Min Star Rating</span>
+              <input type="number" id="sc-rating" value="4.0" step="0.1" min="1" max="5">
+            </div>
+            <div class="filter-row">
+              <span>💬 Min Review Count</span>
+              <input type="number" id="sc-reviews" value="25" min="1">
+            </div>
+
+            <div class="config-divider"></div>
+
+            <div id="scraper-alert"></div>
+            <button class="btn-start" id="btn-start" onclick="startLiveScrape()">
+              🔍 Start Live Scrape
+            </button>
+            <button class="btn-stop" id="btn-stop" onclick="stopScrape()" style="display:none">
+              ⏹ Stop Scraping
+            </button>
+
+            <div style="margin-top:12px;font-size:11px;color:var(--muted);line-height:1.6">
+              Results appear in real-time as each business is discovered, filtered, and scored.
+            </div>
+          </div>
+
+          <!-- Live Feed -->
+          <div style="display:flex;flex-direction:column;gap:10px;overflow:hidden">
+
+            <!-- Stats -->
+            <div class="live-stats">
+              <div class="stat-pill stat-discovered"><div class="num" id="st-discovered">0</div><div class="lbl">Discovered</div></div>
+              <div class="stat-pill stat-passed"><div class="num" id="st-saved">0</div><div class="lbl">Saved</div></div>
+              <div class="stat-pill stat-filtered"><div class="num" id="st-filtered">0</div><div class="lbl">Filtered</div></div>
+              <div class="stat-pill stat-saved"><div class="num" id="st-pass-rate">—</div><div class="lbl">Pass Rate</div></div>
+              <div class="stat-pill stat-errors"><div class="num" id="st-errors">0</div><div class="lbl">Errors</div></div>
+            </div>
+
+            <!-- Status bar -->
+            <div class="status-bar">
+              <div class="status-dot" id="status-dot"></div>
+              <div class="status-msg" id="status-msg">Configure search and click Start</div>
+              <div class="status-phase" id="status-phase"></div>
+            </div>
+
+            <!-- Tabs + Feed -->
+            <div class="feed-wrap" style="flex:1;overflow:hidden">
+              <div class="feed-tabs">
+                <div class="feed-tab active" onclick="switchFeedTab('all',this)">All Events</div>
+                <div class="feed-tab" onclick="switchFeedTab('saved',this)">Saved Leads</div>
+                <div class="feed-tab" onclick="switchFeedTab('filtered',this)">Filtered Out</div>
+              </div>
+              <div class="feed-body" id="feed-all" style="height:calc(100vh - 310px);overflow-y:auto;padding:10px">
+                <div style="text-align:center;padding:60px 20px;color:var(--muted)">
+                  <div style="font-size:40px;margin-bottom:12px">🗺️</div>
+                  <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">Ready to scrape</div>
+                  <div style="font-size:13px">Enter your niche and region, then click Start</div>
+                </div>
+              </div>
+              <div class="feed-body" id="feed-saved" style="height:calc(100vh - 310px);overflow-y:auto;display:none;padding:0">
+                <table class="saved-table">
+                  <thead><tr><th>Business</th><th>Rating</th><th>Website</th><th>Score</th><th>Tier</th></tr></thead>
+                  <tbody id="saved-tbody"></tbody>
+                </table>
+              </div>
+              <div class="feed-body" id="feed-filtered" style="height:calc(100vh - 310px);overflow-y:auto;display:none;padding:10px">
+                <div id="filtered-list"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- CAMPAIGNS -->
+      <div id="page-campaigns" class="page">
+        <div id="campaigns-content"><div class="loading"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+      <!-- LEADS -->
+      <div id="page-leads" class="page">
+        <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+          <input class="input" style="max-width:220px" type="text" id="lead-search" placeholder="Search..." oninput="filterLeads()">
+          <select class="input" style="width:auto" id="lead-filter-status" onchange="filterLeads()">
+            <option value="">All Statuses</option>
+            <option value="new">New</option>
+            <option value="enriched">Enriched</option>
+            <option value="outreach_active">In Outreach</option>
+            <option value="replied">Replied</option>
+            <option value="won">Won</option>
+          </select>
+          <select class="input" style="width:auto" id="lead-filter-tier" onchange="filterLeads()">
+            <option value="">All Tiers</option>
+            <option value="priority">Priority</option>
+            <option value="standard">Standard</option>
+            <option value="nurture">Nurture</option>
+          </select>
+        </div>
+        <div id="leads-content"><div class="loading"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+      <!-- OUTREACH -->
+      <div id="page-outreach" class="page">
+        <div id="outreach-content"><div class="loading"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+      <!-- REPLIES -->
+      <div id="page-replies" class="page">
+        <div id="replies-content"><div class="loading"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="page-settings" class="page">
+        <div id="settings-content"><div class="loading"><span class="spin"></span>Loading...</div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Campaign Modal -->
+<div class="modal-overlay" id="campaign-modal">
+  <div class="modal">
+    <div class="modal-title" id="campaign-modal-title">New Campaign</div>
+    <input type="hidden" id="campaign-id">
+    <div class="form-row"><div><label class="field-label">Campaign Name</label><input class="input" id="c-name" placeholder="Miami Restaurants Q1"></div></div>
+    <div class="form-row cols-2">
+      <div><label class="field-label">Primary Niche</label><input class="input" id="c-niche" placeholder="Restaurants"></div>
+      <div><label class="field-label">Micro-Niche (optional)</label><input class="input" id="c-micro" placeholder="Italian restaurant"></div>
+    </div>
+    <div class="form-row cols-2">
+      <div><label class="field-label">Target Region</label><input class="input" id="c-region" placeholder="Miami, FL"></div>
+      <div><label class="field-label">Radius (km)</label><input class="input" type="number" id="c-radius" value="25"></div>
+    </div>
+    <div class="form-row cols-2">
+      <div><label class="field-label">Min Rating</label><input class="input" type="number" id="c-rating" value="4.0" step="0.1"></div>
+      <div><label class="field-label">Min Reviews</label><input class="input" type="number" id="c-reviews" value="25"></div>
+    </div>
+    <div id="campaign-modal-alert"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('campaign-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveCampaign()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lead Modal -->
+<div class="modal-overlay" id="lead-modal">
+  <div class="modal" style="width:600px">
+    <div class="modal-title" id="lead-modal-title">Lead Details</div>
+    <div id="lead-modal-body"></div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('lead-modal')">Close</button></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// STATE & API
+// ═══════════════════════════════════════════════════
+let token = localStorage.getItem('oc_token') || '';
+let currentUser = null;
+const BASE = (() => { const p = window.location.pathname; const m = p.match(/^(\/openclaw)/); return m ? m[1] : ''; })();
+
+async function api(method, path, body) {
+  const res = await fetch(BASE + '/api' + path, {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) { logout(); return; }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+// ═══════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════
+async function login() {
+  const email = document.getElementById('login-email').value;
+  const pass  = document.getElementById('login-password').value;
+  try {
+    const data = await fetch(BASE + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass }),
+    }).then(r => r.json());
+    if (!data.token) throw new Error(data.error || 'Login failed');
+    token = data.token;
+    localStorage.setItem('oc_token', token);
+    currentUser = data.user;
+    showApp();
+  } catch (e) {
+    const el = document.getElementById('login-error');
+    el.textContent = e.message;
+    el.style.display = 'block';
+  }
+}
+
+async function checkAuth() {
+  if (!token) return false;
+  try { const d = await api('GET', '/auth/me'); currentUser = d.user; return true; } catch { return false; }
+}
+
+function logout() {
+  token = ''; localStorage.removeItem('oc_token');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('sidebar-user').textContent = currentUser?.email || '';
+  loadCampaignsIntoSelect();
+  showPage('live-scraper');
+}
+
+// ═══════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════
+const pageTitles = { dashboard:'Dashboard', 'live-scraper':'🔴 Live Scraper', campaigns:'Campaigns', leads:'Leads', outreach:'Outreach', replies:'Replies', settings:'Settings' };
+const pageLoaders = { dashboard:loadDashboard, campaigns:loadCampaigns, leads:loadLeads, outreach:loadOutreach, replies:loadReplies, settings:loadSettings };
+const navOrder = ['dashboard','live-scraper','campaigns','leads','outreach','replies','settings'];
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name)?.classList.add('active');
+  document.querySelectorAll('.nav-item')[navOrder.indexOf(name)]?.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[name] || name;
+  document.getElementById('topbar-action').innerHTML = '';
+  if (name === 'campaigns') document.getElementById('topbar-action').innerHTML = `<button class="btn btn-accent btn-sm" onclick="openCampaignModal()">+ New Campaign</button>`;
+  if (pageLoaders[name]) pageLoaders[name]();
+}
+
+// ═══════════════════════════════════════════════════
+// LIVE SCRAPER
+// ═══════════════════════════════════════════════════
+let sseSource = null;
+let scraping = false;
+let liveStats = { discovered: 0, saved: 0, filtered: 0, errors: 0 };
+let currentFeedTab = 'all';
+let savedLeads = [];
+let filteredLeads = [];
+
+function setNiche(v) { document.getElementById('sc-niche').value = v; }
+function setRegion(v) { document.getElementById('sc-region').value = v; }
+
+function switchFeedTab(tab, el) {
+  currentFeedTab = tab;
+  document.querySelectorAll('.feed-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('feed-all').style.display = tab === 'all' ? 'block' : 'none';
+  document.getElementById('feed-saved').style.display = tab === 'saved' ? 'block' : 'none';
+  document.getElementById('feed-filtered').style.display = tab === 'filtered' ? 'block' : 'none';
+}
+
+function updateStats(stats) {
+  if (stats.discovered !== undefined) liveStats.discovered = stats.discovered;
+  if (stats.saved !== undefined) liveStats.saved = stats.saved;
+  if (stats.filtered !== undefined) liveStats.filtered = stats.filtered;
+  if (stats.errors !== undefined) liveStats.errors = stats.errors;
+  document.getElementById('st-discovered').textContent = liveStats.discovered;
+  document.getElementById('st-saved').textContent = liveStats.saved;
+  document.getElementById('st-filtered').textContent = liveStats.filtered;
+  document.getElementById('st-errors').textContent = liveStats.errors;
+  const total = liveStats.discovered;
+  const rate = total > 0 ? Math.round((liveStats.saved / total) * 100) : 0;
+  document.getElementById('st-pass-rate').textContent = total > 0 ? rate + '%' : '—';
+}
+
+function setStatus(msg, phase, state) {
+  document.getElementById('status-msg').textContent = msg;
+  document.getElementById('status-phase').textContent = phase || '';
+  const dot = document.getElementById('status-dot');
+  dot.className = 'status-dot' + (state ? ' ' + state : '');
+}
+
+function addFeedItem(html) {
+  const feed = document.getElementById('feed-all');
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  feed.insertBefore(div.firstChild, feed.firstChild);
+  // Keep max 200 items
+  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
+}
+
+function scoreColor(s) { return s >= 75 ? '#ffd166' : s >= 50 ? '#6c63ff' : '#8892b0'; }
+function tierBadgeHtml(t) {
+  const cls = { priority:'badge-priority', standard:'badge-standard', nurture:'badge-nurture', archive:'badge-archive' };
+  return `<span class="badge ${cls[t]||'badge-standard'}">${t||'standard'}</span>`;
+}
+function wsBadgeHtml(ws) {
+  const cls = { none:'badge-none', weak:'badge-weak', active:'badge-archive', unknown:'badge-unknown' };
+  return `<span class="badge ${cls[ws]||'badge-unknown'}">${ws||'?'}</span>`;
+}
+function timeNow() { return new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+
+function handleSSEEvent(data) {
+  const type = data.type;
+
+  if (type === 'connected') {
+    setStatus('Connected — starting search...', 'connecting', 'active');
+    return;
+  }
+
+  if (type === 'ping') return;
+
+  if (type === 'start') {
+    setStatus(data.message, 'starting', 'active');
+    addFeedItem(`<div class="feed-item status">
+      <div class="feed-item-header">
+        <span class="feed-icon">🚀</span>
+        <span class="feed-name">${esc(data.message)}</span>
+        <span class="feed-time">${timeNow()}</span>
+      </div>
+    </div>`);
+    return;
+  }
+
+  if (type === 'status') {
+    setStatus(data.message, data.phase, 'active');
+    return;
+  }
+
+  if (type === 'discovered') {
+    const l = data.lead;
+    if (data.stats) updateStats(data.stats);
+    addFeedItem(`<div class="feed-item discovered">
+      <div class="feed-item-header">
+        <span class="feed-icon">📍</span>
+        <span class="feed-name">${esc(l.business_name)}</span>
+        <span class="feed-time">${timeNow()}</span>
+      </div>
+      <div class="feed-meta">
+        ${l.city ? `<span class="feed-meta-item">📍 ${esc(l.city)}</span>` : ''}
+        ${l.rating ? `<span class="feed-meta-item"><span class="star">★</span> ${l.rating} (${l.review_count||0} reviews)</span>` : ''}
+        ${l.category ? `<span class="feed-meta-item">🏷 ${esc(l.category.split(',')[0])}</span>` : ''}
+        ${l.phone ? `<span class="feed-meta-item">📞 ${esc(l.phone)}</span>` : ''}
+      </div>
+    </div>`);
+    return;
+  }
+
+  if (type === 'checking') {
+    setStatus(data.check + ' — ' + data.lead.business_name, '', 'active');
+    return;
+  }
+
+  if (type === 'website_check') {
+    const icon = data.website_status === 'none' ? '✅' : data.website_status === 'weak' ? '⚠️' : '❌';
+    setStatus(`${icon} Website: ${data.website_status} — ${data.lead.business_name}`, 'website', 'active');
+    return;
+  }
+
+  if (type === 'filtered') {
+    const l = data.lead;
+    if (data.stats) updateStats(data.stats);
+    addFeedItem(`<div class="feed-item filtered">
+      <div class="feed-item-header">
+        <span class="feed-icon">⛔</span>
+        <span class="feed-name">${esc(l.business_name||'Unknown')}</span>
+        <span class="feed-time">${timeNow()}</span>
+      </div>
+      <div class="feed-reason">Filtered: ${esc(data.reason||'')}</div>
+    </div>`);
+    filteredLeads.push({ ...l, reason: data.reason });
+    refreshFilteredList();
+    return;
+  }
+
+  if (type === 'saved') {
+    const l = data.lead;
+    if (data.stats) updateStats(data.stats);
+    const sc = scoreColor(l.ai_score);
+    addFeedItem(`<div class="feed-item saved">
+      <div class="feed-item-header">
+        <span class="feed-icon">✅</span>
+        <span class="feed-name">${esc(l.business_name)}</span>
+        <span class="feed-time">${timeNow()}</span>
+      </div>
+      <div class="feed-meta">
+        ${l.city ? `<span class="feed-meta-item">📍 ${esc(l.city)}</span>` : ''}
+        ${l.rating ? `<span class="feed-meta-item"><span class="star">★</span> ${l.rating}</span>` : ''}
+        <span class="feed-meta-item">🌐 ${l.website_status||'?'}</span>
+        ${l.phone ? `<span class="feed-meta-item">📞 ${esc(l.phone)}</span>` : ''}
+        ${tierBadgeHtml(l.queue_tier)}
+      </div>
+      <div class="feed-score">
+        <span class="score-num" style="color:${sc}">Score ${l.ai_score||0}</span>
+        <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${l.ai_score||0}%;background:${sc}"></div></div>
+      </div>
+      ${l.score_notes ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">💡 ${esc(l.score_notes)}</div>` : ''}
+    </div>`);
+    savedLeads.push(l);
+    refreshSavedTable();
+    return;
+  }
+
+  if (type === 'error') {
+    liveStats.errors++;
+    updateStats(liveStats);
+    addFeedItem(`<div class="feed-item error">
+      <div class="feed-item-header">
+        <span class="feed-icon">⚠️</span>
+        <span class="feed-name" style="color:var(--accent3)">Error: ${esc(data.message||'Unknown error')}</span>
+        <span class="feed-time">${timeNow()}</span>
+      </div>
+    </div>`);
+    return;
+  }
+
+  if (type === 'complete') {
+    scraping = false;
+    setScrapeButtons(false);
+    document.getElementById('live-badge').style.display = 'none';
+    const s = data.stats || liveStats;
+    setStatus(`Complete! ${s.saved||0} leads saved, ${s.filtered||0} filtered out`, '', 'done');
+    addFeedItem(`<div class="feed-item saved" style="background:rgba(0,212,170,.08);border-color:rgba(0,212,170,.4)">
+      <div class="feed-item-header">
+        <span class="feed-icon">🎉</span>
+        <span class="feed-name" style="color:var(--accent2)">Scrape Complete!</span>
+        <span class="feed-time">${timeNow()}</span>
+      </div>
+      <div class="feed-meta">
+        <span class="feed-meta-item">✅ ${s.saved||0} saved</span>
+        <span class="feed-meta-item">⛔ ${s.filtered||0} filtered</span>
+        <span class="feed-meta-item">🔍 ${s.discovered||0} discovered</span>
+      </div>
+    </div>`);
+  }
+}
+
+function refreshSavedTable() {
+  const tbody = document.getElementById('saved-tbody');
+  tbody.innerHTML = savedLeads.slice().reverse().map(l => `<tr>
+    <td>
+      <strong>${esc(l.business_name)}</strong><br>
+      <span style="color:var(--muted);font-size:11px">${esc(l.city||'')}${l.state?', '+l.state:''}</span>
+      ${l.phone ? `<br><span style="color:var(--muted);font-size:11px">📞 ${esc(l.phone)}</span>` : ''}
+    </td>
+    <td><span class="star">★</span> ${l.rating||'—'}<br><span style="font-size:10px;color:var(--muted)">${l.review_count||0} reviews</span></td>
+    <td>${wsBadgeHtml(l.website_status)}</td>
+    <td><span style="color:${scoreColor(l.ai_score)};font-weight:700">${l.ai_score||0}</span></td>
+    <td>${tierBadgeHtml(l.queue_tier)}</td>
+  </tr>`).join('');
+}
+
+function refreshFilteredList() {
+  document.getElementById('filtered-list').innerHTML = filteredLeads.slice().reverse().map(l => `
+    <div class="feed-item filtered" style="margin-bottom:6px">
+      <strong>${esc(l.business_name||'?')}</strong>
+      ${l.city ? `<span style="color:var(--muted);font-size:11px;margin-left:8px">${esc(l.city)}</span>` : ''}
+      ${l.rating ? `<span style="color:var(--muted);font-size:11px;margin-left:8px">★ ${l.rating}</span>` : ''}
+      <div class="feed-reason">${esc(l.reason||'')}</div>
+    </div>`).join('');
+}
+
+function setScrapeButtons(active) {
+  document.getElementById('btn-start').disabled = active;
+  document.getElementById('btn-start').style.display = active ? 'none' : 'block';
+  document.getElementById('btn-stop').style.display = active ? 'block' : 'none';
+}
+
+async function startLiveScrape() {
+  const niche  = document.getElementById('sc-niche').value.trim();
+  const region = document.getElementById('sc-region').value.trim();
+  if (!niche || !region) {
+    showScrapeAlert('Please enter a niche and region', 'error');
+    return;
+  }
+
+  // Reset state
+  scraping = true;
+  liveStats = { discovered: 0, saved: 0, filtered: 0, errors: 0 };
+  savedLeads = [];
+  filteredLeads = [];
+  updateStats(liveStats);
+  document.getElementById('feed-all').innerHTML = '';
+  document.getElementById('saved-tbody').innerHTML = '';
+  document.getElementById('filtered-list').innerHTML = '';
+  document.getElementById('scraper-alert').innerHTML = '';
+  setScrapeButtons(true);
+  document.getElementById('live-badge').style.display = 'flex';
+  setStatus('Connecting...', '', 'active');
+
+  const sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+
+  // Open SSE stream first
+  if (sseSource) sseSource.close();
+  sseSource = new EventSource(BASE + '/api/scraper/stream/' + sessionId + '?token=' + encodeURIComponent(token));
+  sseSource.onmessage = (e) => {
+    try { handleSSEEvent(JSON.parse(e.data)); } catch(err) { console.error('SSE parse error', err); }
+  };
+  sseSource.onerror = () => {
+    if (scraping) setStatus('Connection lost — scraping may still run in background', '', 'error');
+  };
+
+  // Small delay then start scrape
+  await sleep(500);
+
+  try {
+    await api('POST', '/scraper/live', {
+      sessionId,
+      niche,
+      micro_niche: document.getElementById('sc-micro').value.trim() || undefined,
+      region,
+      radius_km: parseInt(document.getElementById('sc-radius').value) || 25,
+      min_rating: parseFloat(document.getElementById('sc-rating').value) || 4.0,
+      min_reviews: parseInt(document.getElementById('sc-reviews').value) || 25,
+      campaign_id: document.getElementById('sc-campaign').value || undefined,
+    });
+  } catch(err) {
+    scraping = false;
+    setScrapeButtons(false);
+    document.getElementById('live-badge').style.display = 'none';
+    setStatus('Failed to start: ' + err.message, '', 'error');
+    showScrapeAlert(err.message, 'error');
+  }
+}
+
+function stopScrape() {
+  if (sseSource) { sseSource.close(); sseSource = null; }
+  scraping = false;
+  setScrapeButtons(false);
+  document.getElementById('live-badge').style.display = 'none';
+  setStatus('Stopped by user', '', '');
+  addFeedItem(`<div class="feed-item status"><div class="feed-item-header"><span class="feed-icon">⏹</span><span class="feed-name">Scraping stopped</span><span class="feed-time">${timeNow()}</span></div></div>`);
+}
+
+function showScrapeAlert(msg, type) {
+  document.getElementById('scraper-alert').innerHTML = `<div class="alert alert-${type}" style="margin-bottom:10px">${esc(msg)}</div>`;
+  setTimeout(() => { document.getElementById('scraper-alert').innerHTML = ''; }, 5000);
+}
+
+async function loadCampaignsIntoSelect() {
+  try {
+    const { campaigns } = await api('GET', '/campaigns');
+    const sel = document.getElementById('sc-campaign');
+    sel.innerHTML = '<option value="">No campaign</option>';
+    (campaigns||[]).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════
+async function loadDashboard() {
+  const el = document.getElementById('dash-content');
+  try {
+    const { leads, outreach, recent_leads, recent_replies } = await api('GET', '/dashboard/overview');
+    const l = leads || {};
+    const o = outreach || {};
+    const openRate = o.total_sent > 0 ? Math.round((o.total_opened||0) / o.total_sent * 100) : 0;
+    el.innerHTML = `
+      <div class="grid grid-4" style="margin-bottom:16px">
+        ${mc('Total Leads', l.total||0, 'all campaigns', '#6c63ff')}
+        ${mc('Priority Queue', l.priority_count||0, 'score ≥ 75', '#ffd166')}
+        ${mc('Meetings Booked', l.meetings||0, 'calls scheduled', '#00d4aa')}
+        ${mc('Deals Won', l.won||0, 'closed successfully', '#00d4aa')}
+      </div>
+      <div class="grid grid-4" style="margin-bottom:16px">
+        ${mc('Emails Sent', o.total_sent||0, 'total outreach', '#6c63ff')}
+        ${mc('Open Rate', openRate+'%', 'vs 18% avg', '#ffd166')}
+        ${mc('Sent Today', o.sent_today||0, 'of daily limit', '#00d4aa')}
+        ${mc('Avg Score', l.avg_score||0, 'out of 100', '#ff6b6b')}
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-title">Recent Leads</div>
+          ${(recent_leads||[]).length ? `<table>
+            <thead><tr><th>Business</th><th>Score</th><th>Status</th></tr></thead>
+            <tbody>${(recent_leads||[]).map(l=>`<tr>
+              <td><strong>${esc(l.business_name)}</strong><br><small style="color:var(--muted)">${esc(l.city||'')}</small></td>
+              <td><span style="color:${scoreColor(l.ai_score)};font-weight:700">${l.ai_score||0}</span></td>
+              <td><span class="badge badge-${l.status}">${l.status}</span></td>
+            </tr>`).join('')}</tbody></table>` : '<div class="empty-state"><h3>No leads yet</h3><p>Use Live Scraper to generate leads</p></div>'}
+        </div>
+        <div class="card">
+          <div class="card-title">Recent Replies</div>
+          ${(recent_replies||[]).length ? (recent_replies||[]).map(r=>`<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+              <strong>${esc(r.business_name)}</strong>
+              <span class="badge badge-${r.intent}">${r.intent}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted)">${esc((r.body||'').slice(0,80))}...</div>
+          </div>`).join('') : '<div class="empty-state"><h3>No replies yet</h3></div>'}
+        </div>
+      </div>`;
+  } catch(e) { el.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
+}
+
+function mc(label, value, sub, color) {
+  return `<div class="card" style="border-top:3px solid ${color}">
+    <div class="card-title">${label}</div>
+    <div class="metric">${value}</div>
+    <div class="metric-sub">${sub}</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// CAMPAIGNS
+// ═══════════════════════════════════════════════════
+async function loadCampaigns() {
+  const el = document.getElementById('campaigns-content');
+  try {
+    const { campaigns } = await api('GET', '/campaigns');
+    if (!campaigns?.length) {
+      el.innerHTML = `<div class="empty-state"><h3>No campaigns yet</h3><p>Create a campaign to organise your scraping</p><br><button class="btn btn-accent" onclick="openCampaignModal()">+ Create Campaign</button></div>`;
+      return;
+    }
+    el.innerHTML = `<div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>Campaign</th><th>Niche</th><th>Region</th><th>Leads</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${campaigns.map(c=>`<tr>
+        <td><strong>${esc(c.name)}</strong></td>
+        <td>${esc(c.niche)}${c.micro_niche?`<br><span style="font-size:11px;color:var(--muted)">${esc(c.micro_niche)}</span>`:''}</td>
+        <td>${esc(c.region)}</td>
+        <td>${c.lead_count||0}</td>
+        <td><span class="badge badge-${c.status}">${c.status}</span></td>
+        <td>
+          <button class="btn btn-sm btn-success" onclick="launchScrapeFor(${JSON.stringify(c).replace(/"/g,'&quot;')})">🔍 Scrape</button>
+          <button class="btn btn-sm btn-outline" onclick="editCampaign(${JSON.stringify(c).replace(/"/g,'&quot;')})" style="margin-left:4px">Edit</button>
+        </td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`;
+  } catch(e) { el.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
+}
+
+function launchScrapeFor(c) {
+  showPage('live-scraper');
+  setTimeout(() => {
+    document.getElementById('sc-niche').value = c.niche || '';
+    document.getElementById('sc-micro').value = c.micro_niche || '';
+    document.getElementById('sc-region').value = c.region || '';
+    document.getElementById('sc-radius').value = c.radius_km || 25;
+    document.getElementById('sc-rating').value = c.min_rating || 4.0;
+    document.getElementById('sc-reviews').value = c.min_reviews || 25;
+    document.getElementById('sc-campaign').value = c.id || '';
+  }, 100);
+}
+
+function openCampaignModal() {
+  document.getElementById('campaign-id').value = '';
+  document.getElementById('campaign-modal-title').textContent = 'New Campaign';
+  ['c-name','c-niche','c-micro','c-region'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('c-radius').value=25;
+  document.getElementById('c-rating').value=4.0;
+  document.getElementById('c-reviews').value=25;
+  openModal('campaign-modal');
+}
+
+function editCampaign(c) {
+  document.getElementById('campaign-id').value=c.id;
+  document.getElementById('campaign-modal-title').textContent='Edit Campaign';
+  document.getElementById('c-name').value=c.name;
+  document.getElementById('c-niche').value=c.niche;
+  document.getElementById('c-micro').value=c.micro_niche||'';
+  document.getElementById('c-region').value=c.region;
+  document.getElementById('c-radius').value=c.radius_km;
+  document.getElementById('c-rating').value=c.min_rating;
+  document.getElementById('c-reviews').value=c.min_reviews;
+  openModal('campaign-modal');
+}
+
+async function saveCampaign() {
+  const id = document.getElementById('campaign-id').value;
+  const payload = {
+    name:document.getElementById('c-name').value,
+    niche:document.getElementById('c-niche').value,
+    micro_niche:document.getElementById('c-micro').value,
+    region:document.getElementById('c-region').value,
+    radius_km:parseInt(document.getElementById('c-radius').value),
+    min_rating:parseFloat(document.getElementById('c-rating').value),
+    min_reviews:parseInt(document.getElementById('c-reviews').value),
+    status:'active',
+  };
+  try {
+    if (id) await api('PUT', '/campaigns/'+id, payload);
+    else await api('POST', '/campaigns', payload);
+    closeModal('campaign-modal');
+    loadCampaigns();
+    loadCampaignsIntoSelect();
+  } catch(e) { showAlert('campaign-modal-alert', e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════
+// LEADS
+// ═══════════════════════════════════════════════════
+let filterTimeout;
+let currentLeads = [];
+
+function exportLeadsCSV(leads) {
+  if (!leads || !leads.length) { alert('No leads to export'); return; }
+  const headers = ['Business','City','State','Phone','Email','Email Confidence','Website','Website Status','Rating','Reviews','Score','Tier','Status'];
+  const rows = leads.map(l => [
+    l.business_name, l.city, l.state, l.phone||'',
+    l.owner_email||'', l.email_confidence||'',
+    l.website_url||l.maps_website||'', l.website_status||'',
+    l.rating||'', l.review_count||'', l.ai_score||'', l.queue_tier||'', l.status||''
+  ].map(v => '"'+String(v).replace(/"/g,'""')+'"').join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'openclaw-leads-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+async function loadLeads() {
+  const el = document.getElementById('leads-content');
+  try {
+    const search = document.getElementById('lead-search')?.value||'';
+    const status = document.getElementById('lead-filter-status')?.value||'';
+    const tier   = document.getElementById('lead-filter-tier')?.value||'';
+    let qs = '?limit=200';
+    if (search) qs += '&search=' + encodeURIComponent(search);
+    if (status) qs += '&status=' + status;
+    if (tier)   qs += '&queue_tier=' + tier;
+    const { leads, pagination } = await api('GET', '/leads' + qs);
+    currentLeads = leads || [];
+    if (!currentLeads.length) {
+      el.innerHTML = '<div class="empty-state"><h3>No leads found</h3><p>Use the Live Scraper to generate leads</p></div>';
+      return;
+    }
+    const emailCount   = currentLeads.filter(l => l.owner_email).length;
+    const websiteCount = currentLeads.filter(l => l.website_url || l.maps_website).length;
+    let rows = '';
+    for (const l of currentLeads) {
+      const siteUrl   = l.website_url || l.maps_website || '';
+      const siteShort = siteUrl ? siteUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : '';
+      const siteCell  = siteUrl
+        ? '<span class="badge badge-' + (l.website_status||'active') + '" style="margin-bottom:3px">' + (l.website_status||'active') + '</span>'
+          + '<br><a href="' + esc(siteUrl) + '" target="_blank" style="color:var(--accent2);font-size:11px;font-family:JetBrains Mono,monospace;word-break:break-all">' + esc(siteShort) + '</a>'
+        : '<span class="badge badge-none">no website</span>';
+      const emailCell = l.owner_email
+        ? '<a href="mailto:' + esc(l.owner_email) + '" style="color:var(--accent2);font-size:12px;word-break:break-all">' + esc(l.owner_email) + '</a>'
+          + (l.email_confidence ? '<br><small style="color:var(--muted)">' + esc(l.email_confidence) + ' confidence</small>' : '')
+        : '<span style="color:var(--muted);font-size:12px">—</span>';
+      const phoneCell = l.phone
+        ? '<a href="tel:' + esc(l.phone) + '" style="color:var(--text);white-space:nowrap;font-size:12px">' + esc(l.phone) + '</a>'
+        : '<span style="color:var(--muted)">—</span>';
+      rows += '<tr>'
+        + '<td><strong style="cursor:pointer;color:var(--accent)" onclick="viewLead(' + l.id + ')">' + esc(l.business_name) + '</strong>'
+        + '<br><small style="color:var(--muted)">' + esc(l.city||'') + (l.state ? ', ' + l.state : '') + '</small></td>'
+        + '<td><span class="star">★</span> ' + (l.rating||'—') + '<br><small style="color:var(--muted)">' + (l.review_count||0) + ' reviews</small></td>'
+        + '<td style="max-width:170px">' + siteCell + '</td>'
+        + '<td style="max-width:190px">' + emailCell + '</td>'
+        + '<td>' + phoneCell + '</td>'
+        + '<td><span style="color:' + scoreColor(l.ai_score) + ';font-weight:700;font-size:16px">' + (l.ai_score||0) + '</span></td>'
+        + '<td><span class="badge badge-' + (l.queue_tier||'standard') + '">' + (l.queue_tier||'standard') + '</span></td>'
+        + '<td><span class="badge badge-' + l.status + '">' + l.status + '</span></td>'
+        + '<td style="white-space:nowrap"><button class="btn btn-sm btn-outline" onclick="viewLead(' + l.id + ')">View</button>'
+        + (l.status !== 'won' ? '<button class="btn btn-sm btn-success" onclick="markWon(' + l.id + ')" style="margin-left:4px">Won</button>' : '')
+        + (!l.owner_email && (l.website_url || l.maps_website) ? '<button class="btn btn-sm" onclick="findEmailSingle(' + l.id + ', this)" style="margin-left:4px;background:rgba(0,212,170,.1);color:var(--accent2);border:1px solid rgba(0,212,170,.3)">📧 Find</button>' : '')
+        + '</td></tr>';
+    }
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;flex-wrap:wrap">'
+      + '<span style="font-size:12px;color:var(--muted)">' + (pagination?.total||currentLeads.length) + ' leads total</span>'
+      + '<span style="font-size:12px;color:var(--accent2)">📧 <strong>' + emailCount + '</strong> have email</span>'
+      + '<span style="font-size:12px;color:var(--accent)">🌐 <strong>' + websiteCount + '</strong> have website</span>'
+      + '<button class="btn btn-sm" style="background:rgba(0,212,170,.12);color:var(--accent2);border:1px solid rgba(0,212,170,.25)" onclick="openEmailFinder()">📧 Find All Emails</button><button class="btn btn-sm" style="background:rgba(108,99,255,.12);color:var(--accent);border:1px solid rgba(108,99,255,.25);margin-left:4px" onclick="exportLeadsCSV(currentLeads)">⬇ Export CSV</button>'
+      + '</div>'
+      + '<div class="card" style="padding:0"><div class="table-wrap"><table>'
+      + '<thead><tr><th>Business</th><th>Rating</th><th>Website</th><th>Email</th><th>Phone</th><th>Score</th><th>Tier</th><th>Status</th><th>Actions</th></tr></thead>'
+      + '<tbody>' + rows + '</tbody></table></div></div>';
+  } catch(e) { el.innerHTML = '<div class="alert alert-error">' + e.message + '</div>'; }
+}
+
+function filterLeads() { clearTimeout(filterTimeout); filterTimeout = setTimeout(loadLeads, 400); }
+
+async function viewLead(id) {
+  openModal('lead-modal');
+  document.getElementById('lead-modal-body').innerHTML='<div class="loading"><span class="spin"></span>Loading...</div>';
+  try {
+    const { lead, sequences } = await api('GET', '/leads/'+id);
+    document.getElementById('lead-modal-title').textContent=lead.business_name;
+    const reviews = typeof lead.source_reviews==='string'?JSON.parse(lead.source_reviews||'[]'):(lead.source_reviews||[]);
+    document.getElementById('lead-modal-body').innerHTML=`
+      <div class="grid grid-2" style="margin-bottom:14px">
+        <div>
+          <div style="margin-bottom:7px">📍 ${esc(lead.address||'—')}</div>
+          <div style="margin-bottom:7px">📞 ${esc(lead.phone||'—')}</div>
+          <div style="margin-bottom:7px">📧 ${esc(lead.owner_email||'Not found')}</div>
+        </div>
+        <div>
+          <div style="margin-bottom:7px">⭐ ${lead.rating} (${lead.review_count} reviews)</div>
+          <div style="margin-bottom:7px">🌐 <span class="badge badge-${lead.website_status}">${lead.website_status||'?'}</span></div>
+          <div>Score: <span style="color:${scoreColor(lead.ai_score)};font-weight:700">${lead.ai_score||0}</span> ${tierBadgeHtml(lead.queue_tier)}</div>
+        </div>
+      </div>
+      ${lead.score_notes?`<div class="alert alert-info" style="margin-bottom:12px">💡 ${esc(lead.score_notes)}</div>`:''}
+      ${reviews.slice(0,3).map(r=>`<div style="margin-bottom:8px;padding:8px 12px;background:var(--bg);border-radius:6px;font-size:12px;color:var(--muted)">
+        <span class="star">★</span> ${r.rating} — "${esc((r.text||'').slice(0,120))}"
+      </div>`).join('')}
+      <div style="margin-top:14px"><strong style="font-size:12px">Email Sequence (${sequences?.length||0} steps)</strong>
+      ${sequences?.map(s=>`<div style="display:flex;align-items:center;gap:8px;margin-top:7px">
+        <span style="background:var(--surface2);border-radius:4px;padding:2px 8px;font-size:11px">Step ${s.step}</span>
+        <span class="badge badge-${s.status}">${s.status}</span>
+        <span style="color:var(--muted);font-size:12px">${esc(s.subject||'')}</span>
+      </div>`).join('') || '<div style="color:var(--muted);font-size:13px;margin-top:8px">No sequence yet</div>'}</div>`;
+  } catch(e) { document.getElementById('lead-modal-body').innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
+}
+
+async function markWon(id) {
+  if (!confirm('Mark as Won?')) return;
+  try { await api('POST', '/leads/'+id+'/mark-won'); loadLeads(); } catch(e) { alert(e.message); }
+}
+
+// ═══════════════════════════════════════════════════
+// OUTREACH — Full pipeline with generate/edit/send
+// ═══════════════════════════════════════════════════
+let outreachTab = 'compose';
+
+function switchOutreachTab(tab) {
+  outreachTab = tab;
+  document.querySelectorAll('.ot-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.ot-tab[data-tab="' + tab + '"]').classList.add('active');
+  if (tab === 'compose') loadComposeTab();
+  if (tab === 'pipeline') loadPipelineTab();
+  if (tab === 'sent') loadSentTab();
+}
+
+async function loadOutreach() {
+  const el = document.getElementById('outreach-content');
+  el.innerHTML = `
+    <div style="display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border)">
+      <div class="ot-tab active" data-tab="compose" onclick="switchOutreachTab('compose')" style="padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid var(--accent);color:var(--accent)">✍️ Compose & Send</div>
+      <div class="ot-tab" data-tab="pipeline" onclick="switchOutreachTab('pipeline')" style="padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">📬 Pipeline</div>
+      <div class="ot-tab" data-tab="sent" onclick="switchOutreachTab('sent')" style="padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted)">📊 Stats</div>
+    </div>
+    <div id="ot-body"><div class="loading"><span class="spin"></span>Loading...</div></div>
+  `;
+  // Fix tab click styling dynamically
+  document.querySelectorAll('.ot-tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.ot-tab').forEach(x => { x.style.borderBottomColor='transparent'; x.style.color='var(--muted)'; });
+      t.style.borderBottomColor = 'var(--accent)';
+      t.style.color = 'var(--accent)';
+      const tab = t.dataset.tab;
+      outreachTab = tab;
+      if (tab === 'compose') loadComposeTab();
+      if (tab === 'pipeline') loadPipelineTab();
+      if (tab === 'sent') loadSentTab();
+    };
+  });
+  loadComposeTab();
+}
+
+async function loadComposeTab() {
+  const el = document.getElementById('ot-body');
+  el.innerHTML = '<div class="loading"><span class="spin"></span>Loading leads...</div>';
+  try {
+    const { leads } = await api('GET', '/outreach/leads-ready');
+    if (!leads || !leads.length) {
+      el.innerHTML = '<div class="empty-state"><h3>No leads with email yet</h3><p>Go to Leads → Find All Emails first</p></div>';
+      return;
+    }
+    const noSeq = leads.filter(l => l.seq_count == 0);
+    const hasSeq = leads.filter(l => l.seq_count > 0);
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+        <div style="font-size:13px;color:var(--muted)">${leads.length} leads with email &nbsp;·&nbsp; <span style="color:var(--accent2)">${noSeq.length} ready to generate</span> &nbsp;·&nbsp; <span style="color:var(--accent)">${hasSeq.length} have sequence</span></div>
+        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <select class="input" style="width:auto;font-size:12px" id="followup-days">
+            <option value="2">Follow-ups every 2 days</option>
+            <option value="3">Every 3 days</option>
+            <option value="5">Every 5 days</option>
+            <option value="7">Every 7 days</option>
+          </select>
+          <button class="btn btn-sm" style="background:rgba(108,99,255,.15);color:var(--accent);border:1px solid rgba(108,99,255,.3)" onclick="generateForAll()">⚡ Generate All</button>
+          <button class="btn btn-sm" style="background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.3)" onclick="regenerateAll()">↺ Regenerate All</button>
+          <button class="btn btn-sm" style="background:rgba(255,107,107,.15);color:var(--accent3);border:1px solid rgba(255,107,107,.4)" onclick="clearSequences('all');setTimeout(loadComposeTab,600)">🗑 Clear All</button>
+          <button class="btn btn-green btn-sm" onclick="openSendAllModal()">📤 Send All Now</button>
+        </div>
+      </div>
+      <div id="bulk-alert" style="margin-bottom:10px"></div>
+      <div id="compose-list">
+        ${leads.map(l => renderComposeRow(l)).join('')}
+      </div>
+    `;
+  } catch(e) { el.innerHTML = '<div class="alert alert-error">' + e.message + '</div>'; }
+}
+
+function renderComposeRow(lead) {
+  const hasSeq = lead.seq_count > 0;
+  const ws = lead.website_status;
+  const pitch = ws === 'none' ? '🆕 Build website' : '🔧 Redesign website';
+  return `<div class="card" style="margin-bottom:10px;padding:14px 18px" id="compose-row-${lead.id}">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-weight:600;font-size:14px">${esc(lead.business_name)}</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:2px">
+          ${esc(lead.city||'')} &nbsp;·&nbsp; <span style="color:var(--accent2)">${esc(lead.owner_email)}</span>
+          &nbsp;·&nbsp; <span class="badge badge-${ws||'unknown'}">${ws||'?'}</span>
+          &nbsp;·&nbsp; <span style="color:var(--muted)">${pitch}</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">⭐ ${lead.rating||'?'} (${lead.review_count||0} reviews) &nbsp;·&nbsp; Score: <span style="color:${scoreColor(lead.ai_score)};font-weight:700">${lead.ai_score||0}</span></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+        ${hasSeq
+          ? `<span style="font-size:12px;color:var(--accent2)">✅ ${lead.seq_count} emails ready</span>
+             <button class="btn btn-sm btn-outline" onclick="viewSequence(${lead.id}, '${esc(lead.business_name)}', '${esc(lead.owner_email)}')">✏️ Review & Send</button>
+             <button class="btn btn-sm" style="background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.25)" onclick="regenerate(${lead.id})">↺ Regenerate</button>`
+          : `<button class="btn btn-accent btn-sm" onclick="generateSequence(${lead.id}, '${esc(lead.business_name)}')">⚡ Generate Emails</button>`
+        }
+      </div>
+    </div>
+  </div>`;
+}
+
+async function generateSequence(leadId, name) {
+  const btn = event.target;
+  btn.textContent = '⏳ Generating...';
+  btn.disabled = true;
+  const days = document.getElementById('followup-days')?.value || 2;
+  try {
+    const { sequences } = await api('POST', '/outreach/generate/' + leadId, { follow_up_days: parseInt(days) });
+    // Refresh just that row
+    const row = document.getElementById('compose-row-' + leadId);
+    if (row) {
+      row.innerHTML = `<div style="display:flex;align-items:center;gap:12px">
+        <div style="flex:1"><div style="font-weight:600">${esc(name)}</div>
+        <div style="font-size:12px;color:var(--accent2);margin-top:4px">✅ ${sequences.length} emails generated!</div></div>
+        <button class="btn btn-sm btn-accent" onclick="viewSequence(${leadId}, '${esc(name)}', '')">✏️ Review & Send</button>
+      </div>`;
+    }
+  } catch(e) {
+    btn.textContent = '⚡ Generate Emails'; btn.disabled = false;
+    alert('Error: ' + e.message);
+  }
+}
+
+async function generateForAll() {
+  if (!confirm('Generate AI email sequences for all leads without one? This may take a minute.')) return;
+  const btn = event.target;
+  btn.textContent = '⏳ Generating...'; btn.disabled = true;
+  const days = document.getElementById('followup-days')?.value || 2;
+  try {
+    const { leads } = await api('GET', '/outreach/leads-ready');
+    const noSeq = leads.filter(l => l.seq_count == 0);
+    let done = 0;
+    for (const lead of noSeq) {
+      btn.textContent = `⏳ ${done}/${noSeq.length}...`;
+      try {
+        await api('POST', '/outreach/generate/' + lead.id, { follow_up_days: parseInt(days) });
+        done++;
+      } catch(e) { console.error('Failed for', lead.business_name, e.message); }
+    }
+    btn.textContent = '✅ Done! ' + done + ' sequences created';
+    setTimeout(() => loadComposeTab(), 1500);
+  } catch(e) { btn.textContent = '⚡ Generate All'; btn.disabled = false; alert(e.message); }
+}
+
+async function regenerate(leadId) {
+  if (!confirm('Regenerate will delete current draft emails and create new ones. Continue?')) return;
+  const days = document.getElementById('followup-days')?.value || 2;
+  try {
+    await api('POST', '/outreach/generate/' + leadId, { follow_up_days: parseInt(days) });
+    loadComposeTab();
+  } catch(e) { alert(e.message); }
+}
+
+// ── SEQUENCE VIEWER/EDITOR ───────────────────────────────
+let currentSeqLeadId = null;
+let currentSeqLeadName = '';
+
+async function viewSequence(leadId, name, email) {
+  currentSeqLeadId = leadId;
+  currentSeqLeadName = name;
+  openModal('sequence-modal');
+  document.getElementById('seq-modal-title').textContent = '📧 ' + name;
+  document.getElementById('seq-modal-subtitle').textContent = email;
+  document.getElementById('seq-steps').innerHTML = '<div class="loading"><span class="spin"></span>Loading...</div>';
+  await refreshSeqSteps(leadId);
+}
+
+async function refreshSeqSteps(leadId) {
+  try {
+    const { sequences } = await api('GET', '/outreach/sequences?lead_id=' + leadId);
+    const el = document.getElementById('seq-steps');
+    if (!sequences.length) { el.innerHTML = '<div class="empty-state"><h3>No emails yet</h3></div>'; return; }
+    el.innerHTML = sequences.map(s => renderSeqStep(s)).join('');
+  } catch(e) { document.getElementById('seq-steps').innerHTML = '<div class="alert alert-error">' + e.message + '</div>'; }
+}
+
+function renderSeqStep(s) {
+  const statusColor = { pending:'var(--accent)', sent:'var(--accent2)', failed:'var(--accent3)', opened:'#a78bfa' };
+  const dayLabel = { 1:'Day 1 (Email 1)', 2:'Day 3 (Follow-up)', 3:'Day 5 (Follow-up)', 4:'Day 7 (Final)' };
+  const sendDate = s.send_at ? new Date(s.send_at).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+  const isSent = s.status === 'sent';
+  return `<div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px" id="seq-step-${s.id}">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="background:var(--surface2);border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;color:var(--accent)">${dayLabel[s.step]||'Step '+s.step}</div>
+      <span class="badge badge-${s.status}" style="color:${statusColor[s.status]||'var(--muted)'}">${s.status}</span>
+      <span style="font-size:11px;color:var(--muted);margin-left:auto">📅 ${sendDate}</span>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase">Subject</div>
+      <div id="subject-view-${s.id}" style="font-weight:600;font-size:14px;color:var(--text)">${esc(s.subject||'')}</div>
+      <input id="subject-edit-${s.id}" class="input" style="display:none;font-weight:600" value="${esc(s.subject||'')}">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase">Body</div>
+      <div id="body-view-${s.id}" style="font-size:13px;line-height:1.7;white-space:pre-line;color:var(--text);max-height:160px;overflow:hidden;position:relative" onclick="toggleBodyExpand(${s.id})">${esc(s.body||'')}<div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,var(--bg))" id="body-fade-${s.id}"></div></div>
+      <textarea id="body-edit-${s.id}" class="input" style="display:none;min-height:200px;font-size:13px;line-height:1.7;resize:vertical">${esc(s.body||'')}</textarea>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${!isSent ? `
+        <button class="btn btn-sm" style="background:rgba(108,99,255,.15);color:var(--accent);border:1px solid rgba(108,99,255,.3)" onclick="toggleEdit(${s.id})" id="edit-btn-${s.id}">✏️ Edit</button>
+        <button class="btn btn-sm" style="display:none;background:rgba(0,212,170,.15);color:var(--accent2);border:1px solid rgba(0,212,170,.3)" onclick="saveEdit(${s.id})" id="save-btn-${s.id}">💾 Save</button>
+        <button class="btn btn-sm" style="display:none;background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.2)" onclick="cancelEdit(${s.id})" id="cancel-btn-${s.id}">✕ Cancel</button>
+        <button class="btn btn-sm btn-accent" onclick="sendNow(${s.id}, this)">📤 Send Now</button>
+        <button class="btn btn-sm" style="background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.2)" onclick="deleteStep(${s.id})">🗑</button>
+      ` : `
+        <span style="font-size:12px;color:var(--accent2)">✅ Sent ${s.sent_at ? new Date(s.sent_at).toLocaleDateString() : ''}</span>
+      `}
+    </div>
+  </div>`;
+}
+
+function toggleBodyExpand(id) {
+  const view = document.getElementById('body-view-' + id);
+  const fade = document.getElementById('body-fade-' + id);
+  if (view.style.maxHeight === 'none') {
+    view.style.maxHeight = '160px';
+    if(fade) fade.style.display = 'block';
+  } else {
+    view.style.maxHeight = 'none';
+    if(fade) fade.style.display = 'none';
+  }
+}
+
+function toggleEdit(id) {
+  document.getElementById('subject-view-' + id).style.display = 'none';
+  document.getElementById('body-view-' + id).style.display = 'none';
+  document.getElementById('body-fade-' + id).style.display = 'none';
+  document.getElementById('subject-edit-' + id).style.display = 'block';
+  document.getElementById('body-edit-' + id).style.display = 'block';
+  document.getElementById('edit-btn-' + id).style.display = 'none';
+  document.getElementById('save-btn-' + id).style.display = 'inline-flex';
+  document.getElementById('cancel-btn-' + id).style.display = 'inline-flex';
+}
+
+function cancelEdit(id) {
+  document.getElementById('subject-view-' + id).style.display = 'block';
+  document.getElementById('body-view-' + id).style.display = 'block';
+  document.getElementById('subject-edit-' + id).style.display = 'none';
+  document.getElementById('body-edit-' + id).style.display = 'none';
+  document.getElementById('edit-btn-' + id).style.display = 'inline-flex';
+  document.getElementById('save-btn-' + id).style.display = 'none';
+  document.getElementById('cancel-btn-' + id).style.display = 'none';
+}
+
+async function saveEdit(id) {
+  const subject = document.getElementById('subject-edit-' + id).value;
+  const body    = document.getElementById('body-edit-' + id).value;
+  try {
+    await api('PUT', '/outreach/sequences/' + id, { subject, body });
+    document.getElementById('subject-view-' + id).textContent = subject;
+    document.getElementById('body-view-' + id).textContent = body;
+    cancelEdit(id);
+  } catch(e) { alert('Save failed: ' + e.message); }
+}
+
+async function sendNow(id, btn) {
+  if (!confirm('Send this email now?')) return;
+  const origText = btn.textContent;
+  btn.textContent = '⏳ Sending...'; btn.disabled = true;
+  try {
+    const r = await api('POST', '/outreach/sequences/' + id + '/send-now');
+    btn.textContent = '✅ Sent!';
+    btn.style.cssText = 'background:rgba(0,212,170,.2);color:var(--accent2);border:1px solid rgba(0,212,170,.4)';
+    setTimeout(() => refreshSeqSteps(currentSeqLeadId), 800);
+  } catch(e) {
+    btn.textContent = '❌ ' + (e.message.length > 30 ? 'Failed' : e.message);
+    btn.style.cssText = 'background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.3)';
+    btn.disabled = false;
+    // Show detailed error in a nicer way
+    showSendError(e.message);
+    setTimeout(() => { btn.textContent = origText; btn.style.cssText = ''; }, 4000);
+  }
+}
+
+function showSendError(msg) {
+  const isSmtp = msg.includes('SMTP');
+  const el = document.createElement('div');
+  el.className = 'alert alert-error';
+  el.style.cssText = 'margin-top:10px;font-size:13px';
+  el.innerHTML = '⚠️ ' + esc(msg)
+    + (isSmtp ? '<br><br><strong>To fix:</strong> Add SMTP settings to your .env file and restart the app.' : '');
+  const steps = document.getElementById('seq-steps');
+  const existing = steps.querySelector('.alert-error');
+  if (existing) existing.remove();
+  steps.insertBefore(el, steps.firstChild);
+  setTimeout(() => el.remove(), 8000);
+}
+
+async function deleteStep(id) {
+  if (!confirm('Delete this email step?')) return;
+  try {
+    await api('DELETE', '/outreach/sequences/' + id);
+    document.getElementById('seq-step-' + id)?.remove();
+  } catch(e) { alert(e.message); }
+}
+
+// Regenerate all existing sequences
+async function regenerateAll() {
+  if (!confirm('This will DELETE all current pending email drafts and regenerate fresh ones. Continue?')) return;
+  const btn = event.target;
+  btn.textContent = '⏳ Regenerating...'; btn.disabled = true;
+  const days = document.getElementById('followup-days')?.value || 2;
+  try {
+    const { leads } = await api('GET', '/outreach/leads-ready');
+    let done = 0;
+    for (const lead of leads) {
+      btn.textContent = '⏳ ' + done + '/' + leads.length + '...';
+      try { await api('POST', '/outreach/generate/' + lead.id, { follow_up_days: parseInt(days) }); done++; } catch(e) {}
+    }
+    btn.textContent = '✅ Done!';
+    setTimeout(() => { btn.textContent = '↺ Regenerate All'; btn.disabled = false; loadComposeTab(); }, 1500);
+  } catch(e) { btn.textContent = '↺ Regenerate All'; btn.disabled = false; alert(e.message); }
+}
+
+// Send All modal
+let sendAllSSE = null;
+function openSendAllModal() { openModal('send-all-modal'); }
+
+async function startSendAll() {
+  document.getElementById('sa-btn-start').style.display = 'none';
+  document.getElementById('sa-btn-stop').style.display = 'inline-flex';
+  document.getElementById('sa-stats').style.display = 'grid';
+  document.getElementById('sa-progress-wrap').style.display = 'block';
+  document.getElementById('sa-feed').style.display = 'block';
+  document.getElementById('sa-feed').innerHTML = '';
+  ['sa-sent','sa-failed','sa-progress'].forEach(id => { const e=document.getElementById(id); if(e) e.textContent='0'; });
+
+  const sessionId = 'sa_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+  if (sendAllSSE) sendAllSSE.close();
+  sendAllSSE = new EventSource(BASE + '/api/leads/find-emails-bulk/stream/' + sessionId + '?token=' + encodeURIComponent(token));
+  sendAllSSE.onmessage = (e) => { try { handleSendAllEvent(JSON.parse(e.data)); } catch(err) {} };
+
+  await new Promise(r => setTimeout(r, 400));
+  try { await api('POST', '/outreach/send-all-step1', { sessionId }); }
+  catch(e) { addSaFeed('error', '✗ ' + e.message); resetSendAllBtns(); }
+}
+
+function stopSendAll() { if (sendAllSSE) { sendAllSSE.close(); sendAllSSE = null; } resetSendAllBtns(); }
+
+function resetSendAllBtns() {
+  document.getElementById('sa-btn-start').style.display = 'inline-flex';
+  document.getElementById('sa-btn-stop').style.display = 'none';
+}
+
+function handleSendAllEvent(data) {
+  if (data.type === 'ping' || data.type === 'connected') return;
+  if (data.type === 'start') { addSaFeed('info', '🚀 ' + data.message); return; }
+  if (data.type === 'progress') {
+    const pct = data.total > 0 ? Math.round(data.current / data.total * 100) : 0;
+    document.getElementById('sa-bar').style.width = pct + '%';
+    document.getElementById('sa-pct').textContent = pct + '%';
+    document.getElementById('sa-current').textContent = data.lead_name;
+    document.getElementById('sa-progress').textContent = data.current + '/' + data.total;
+    if (data.stats) { document.getElementById('sa-sent').textContent = data.stats.sent||0; document.getElementById('sa-failed').textContent = data.stats.failed||0; }
+    return;
+  }
+  if (data.type === 'sent') {
+    if (data.stats) { document.getElementById('sa-sent').textContent = data.stats.sent||0; }
+    addSaFeed('ok', '✅ ' + esc(data.lead_name) + ' → ' + esc(data.email));
+    return;
+  }
+  if (data.type === 'failed') {
+    if (data.stats) { document.getElementById('sa-failed').textContent = data.stats.failed||0; }
+    addSaFeed('error', '✗ ' + esc(data.lead_name) + ': ' + esc(data.reason));
+    if (data.reason && (data.reason.includes('SMTP not configured') || data.reason.includes('Daily send limit'))) {
+      addSaFeed('warn', '⚠️ Stopping bulk send: ' + esc(data.reason));
+    }
+    return;
+  }
+  if (data.type === 'complete') {
+    document.getElementById('sa-bar').style.width = '100%';
+    document.getElementById('sa-pct').textContent = '100%';
+    document.getElementById('sa-current').textContent = 'Complete!';
+    resetSendAllBtns();
+    addSaFeed('done', '🎉 ' + data.message);
+    loadComposeTab();
+  }
+  if (data.type === 'error') { addSaFeed('error', '✗ ' + esc(data.message)); resetSendAllBtns(); }
+}
+
+function addSaFeed(type, html) {
+  const feed = document.getElementById('sa-feed');
+  const colors = { ok:'var(--accent2)', error:'var(--accent3)', info:'var(--accent)', done:'var(--accent2)', warn:'var(--accent4)' };
+  const div = document.createElement('div');
+  div.innerHTML = '<span style="color:' + (colors[type]||'var(--text)') + '">' + html + '</span>';
+  feed.insertBefore(div, feed.firstChild);
+}
+
+// ── PIPELINE TAB ─────────────────────────────────────────
+async function loadPipelineTab() {
+  const el = document.getElementById('ot-body');
+  el.innerHTML = '<div class="loading"><span class="spin"></span>Loading pipeline...</div>';
+  try {
+    const { pipeline } = await api('GET', '/outreach/pipeline');
+    if (!pipeline.length) { el.innerHTML = '<div class="empty-state"><h3>No sequences yet</h3><p>Go to Compose tab to generate emails</p></div>'; return; }
+    el.innerHTML = `<div class="card" style="padding:0"><div class="table-wrap"><table>
+      <thead><tr><th>Business</th><th>Email</th><th>Step 1</th><th>Step 2</th><th>Step 3</th><th>Step 4</th><th>Action</th></tr></thead>
+      <tbody>${pipeline.map(p => {
+        const steps = [1,2,3,4].map(n => {
+          const s = p.steps.find(x => x.step === n);
+          if (!s) return '<td style="color:var(--border)">—</td>';
+          const colors = { pending:'var(--accent)', sent:'var(--accent2)', failed:'var(--accent3)', opened:'#a78bfa' };
+          return '<td><span class="badge badge-' + s.status + '" style="color:' + (colors[s.status]||'var(--muted)') + '">' + s.status + '</span></td>';
+        }).join('');
+        return `<tr>
+          <td><strong>${esc(p.business_name)}</strong><br><small style="color:var(--muted)">${esc(p.city||'')}</small></td>
+          <td style="font-size:12px;color:var(--accent2)">${esc(p.owner_email||'')}</td>
+          ${steps}
+          <td><button class="btn btn-sm btn-outline" onclick="viewSequence(${p.lead_id},'${esc(p.business_name)}','${esc(p.owner_email||'')}')">Manage</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div></div>`;
+  } catch(e) { el.innerHTML = '<div class="alert alert-error">' + e.message + '</div>'; }
+}
+
+async function clearSequences(type) {
+  const labels = { failed:'all failed emails', pending:'all pending/draft emails', all:'ALL email sequences (sent + pending + failed)' };
+  if (!confirm('Delete ' + (labels[type]||type) + '? This cannot be undone.')) return;
+  try {
+    const qs = type === 'all' ? '' : '?status=' + type;
+    const r = await api('DELETE', '/outreach/sequences/clear-all' + qs);
+    alert('✅ ' + r.message);
+    loadSentTab();
+    loadComposeTab();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+// ── STATS TAB ────────────────────────────────────────────
+async function loadSentTab() {
+  const el = document.getElementById('ot-body');
+  el.innerHTML = '<div class="loading"><span class="spin"></span>Loading...</div>';
+  try {
+    const [statsData, seqData] = await Promise.all([api('GET','/outreach/stats'), api('GET','/outreach/sequences?status=sent&limit=50')]);
+    const s = statsData.stats || {};
+    const openRate = s.sent > 0 ? Math.round((s.opened||0)/s.sent*100) : 0;
+    el.innerHTML = `
+      <div class="grid grid-4" style="margin-bottom:20px">
+        ${mc('Sent', s.sent||0, 'total emails', '#6c63ff')}
+        ${mc('Open Rate', openRate+'%', 'estimated opens', '#ffd166')}
+        ${mc('Replied', s.replied||0, 'responses received', '#00d4aa')}
+        ${mc('Pending', s.pending||0, 'queued to send', '#ff6b6b')}
+      </div>
+      <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-accent" onclick="processEmails()">⚡ Send Pending Now</button>
+        <button class="btn btn-sm" style="background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.3)" onclick="clearSequences('failed')">🗑 Clear Failed</button>
+        <button class="btn btn-sm" style="background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.3)" onclick="clearSequences('pending')">🗑 Clear Pending</button>
+        <button class="btn btn-sm" style="background:rgba(255,107,107,.15);color:var(--accent3);border:1px solid rgba(255,107,107,.4)" onclick="clearSequences('all')">🗑 Clear All Emails</button>
+      </div>
+      <div class="card" style="padding:0"><div class="table-wrap"><table>
+        <thead><tr><th>Business</th><th>Step</th><th>Subject</th><th>Sent At</th><th>Status</th></tr></thead>
+        <tbody>${(seqData.sequences||[]).map(s => `<tr>
+          <td><strong>${esc(s.business_name||'')}</strong><br><small style="color:var(--muted)">${esc(s.owner_email||'')}</small></td>
+          <td><span style="background:var(--surface2);border-radius:4px;padding:2px 8px;font-size:11px">Step ${s.step}</span></td>
+          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${esc(s.subject||'')}</td>
+          <td><small style="color:var(--muted)">${s.sent_at ? new Date(s.sent_at).toLocaleDateString() : '—'}</small></td>
+          <td><span class="badge badge-${s.status}">${s.status}</span></td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>`;
+  } catch(e) { el.innerHTML = '<div class="alert alert-error">' + e.message + '</div>'; }
+}
+
+async function processEmails() {
+  try { const r = await api('POST','/outreach/process-now'); alert(r.message); loadSentTab(); } catch(e) { alert(e.message); }
+}
+
+async function loadReplies() {
+  const el = document.getElementById('replies-content');
+  try {
+    const { replies } = await api('GET', '/outreach/replies');
+    if (!replies?.length) { el.innerHTML=`<div class="empty-state"><h3>No replies yet</h3></div>`; return; }
+    el.innerHTML=`<div class="card"><div class="table-wrap"><table>
+      <thead><tr><th>Business</th><th>Intent</th><th>Preview</th><th>Received</th></tr></thead>
+      <tbody>${replies.map(r=>`<tr>
+        <td><strong>${esc(r.business_name)}</strong><br><small style="color:var(--muted)">${esc(r.from_address||'')}</small></td>
+        <td><span class="badge badge-${r.intent}">${r.intent}</span></td>
+        <td style="max-width:280px;color:var(--muted);font-size:12px">${esc((r.body||'').slice(0,100))}...</td>
+        <td><small>${new Date(r.received_at).toLocaleDateString()}</small></td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>`;
+  } catch(e) { el.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
+}
+
+// ═══════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════
+async function loadSettings() {
+  const el = document.getElementById('settings-content');
+  try {
+    const { settings } = await api('GET', '/settings');
+    el.innerHTML=`<div class="card" style="max-width:500px">
+      <div class="card-title">Outreach Settings</div>
+      <div class="form-row cols-2">
+        <div><label class="field-label">Daily Send Limit</label><input class="input" type="number" id="s-daily" value="${settings.daily_send_limit||40}"></div>
+        <div><label class="field-label">Scrape Delay (ms)</label><input class="input" type="number" id="s-delay" value="${settings.scrape_delay_ms||2000}"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div><label class="field-label">Send Window Start</label><input class="input" type="number" id="s-start" value="${settings.send_start_hour||9}"></div>
+        <div><label class="field-label">Send Window End</label><input class="input" type="number" id="s-end" value="${settings.send_end_hour||17}"></div>
+      </div>
+      <div id="settings-alert"></div>
+      <button class="btn btn-accent" onclick="saveSettings()">Save Settings</button>
+    </div>`;
+  } catch(e) { el.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
+}
+
+async function saveSettings() {
+  try {
+    await api('PUT', '/settings', {
+      daily_send_limit: document.getElementById('s-daily').value,
+      scrape_delay_ms:  document.getElementById('s-delay').value,
+      send_start_hour:  document.getElementById('s-start').value,
+      send_end_hour:    document.getElementById('s-end').value,
+    });
+    showAlert('settings-alert', 'Settings saved!', 'success');
+  } catch(e) { showAlert('settings-alert', e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => m.addEventListener('click', e => { if(e.target===m) m.classList.remove('open'); }));
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.innerHTML=`<div class="alert alert-${type}" style="margin-top:10px">${esc(msg)}</div>`;
+  setTimeout(()=>{ el.innerHTML=''; }, 4000);
+}
+function esc(s) { if(!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+function tierBadgeHtml(t) { const m={priority:'badge-priority',standard:'badge-standard',nurture:'badge-nurture',archive:'badge-archive'}; return `<span class="badge ${m[t]||'badge-standard'}">${t||'standard'}</span>`; }
+
+// SSE needs auth — pass token via query for EventSource (can't set headers)
+// Override EventSource to append token
+const OrigEvSource = window.EventSource;
+window.EventSource = function(url, opts) {
+  const sep = url.includes('?') ? '&' : '?';
+  return new OrigEvSource(url.includes('token=') ? url : url + sep + 'token=' + encodeURIComponent(token), opts);
+};
+
+// Update auth middleware to also accept token from query
+// (handled in scraper.js stream route above)
+
+// ═══════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════
+(async () => {
+  const ok = await checkAuth();
+  if (ok) showApp();
+})();
+
+// ═══════════════════════════════════════════════════
+// EMAIL FINDER
+// ═══════════════════════════════════════════════════
+let emailFinderSSE = null;
+let emailFinderRunning = false;
+
+function openEmailFinder() {
+  // Populate campaign dropdown
+  const sel = document.getElementById('ef-campaign');
+  const scSel = document.getElementById('sc-campaign');
+  if (scSel) {
+    sel.innerHTML = scSel.innerHTML;
+  }
+  // Reset UI
+  document.getElementById('ef-feed').style.display = 'none';
+  document.getElementById('ef-feed').innerHTML = '';
+  document.getElementById('ef-stats').style.display = 'none';
+  document.getElementById('ef-progress-wrap').style.display = 'none';
+  document.getElementById('ef-btn-start').style.display = 'inline-flex';
+  document.getElementById('ef-btn-stop').style.display = 'none';
+  document.getElementById('ef-alert').innerHTML = '';
+  ['ef-found','ef-notfound','ef-progress-num','ef-errors'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent='0'; });
+  openModal('email-finder-modal');
+}
+
+async function startBulkEmailFinder() {
+  emailFinderRunning = true;
+  document.getElementById('ef-btn-start').style.display = 'none';
+  document.getElementById('ef-btn-stop').style.display = 'inline-flex';
+  document.getElementById('ef-stats').style.display = 'grid';
+  document.getElementById('ef-progress-wrap').style.display = 'block';
+  document.getElementById('ef-feed').style.display = 'block';
+  document.getElementById('ef-alert').innerHTML = '';
+
+  const sessionId = 'ef_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+
+  // Open SSE stream
+  if (emailFinderSSE) emailFinderSSE.close();
+  emailFinderSSE = new EventSource(BASE + '/api/leads/find-emails-bulk/stream/' + sessionId + '?token=' + encodeURIComponent(token));
+  emailFinderSSE.onmessage = (e) => {
+    try { handleEmailFinderEvent(JSON.parse(e.data)); } catch(err) {}
+  };
+
+  await new Promise(r => setTimeout(r, 400));
+
+  try {
+    await api('POST', '/leads/find-emails-bulk', {
+      sessionId,
+      campaign_id: document.getElementById('ef-campaign').value || undefined,
+      only_missing: document.getElementById('ef-only-missing').checked,
+      limit: parseInt(document.getElementById('ef-limit').value) || 50,
+    });
+  } catch(err) {
+    addEfFeed('error', '✗ Error: ' + err.message);
+    document.getElementById('ef-btn-start').style.display = 'inline-flex';
+    document.getElementById('ef-btn-stop').style.display = 'none';
+  }
+}
+
+function stopEmailFinder() {
+  emailFinderRunning = false;
+  if (emailFinderSSE) { emailFinderSSE.close(); emailFinderSSE = null; }
+  document.getElementById('ef-btn-start').style.display = 'inline-flex';
+  document.getElementById('ef-btn-stop').style.display = 'none';
+}
+
+function handleEmailFinderEvent(data) {
+  if (data.type === 'ping' || data.type === 'connected') return;
+
+  if (data.type === 'start') {
+    addEfFeed('info', '🚀 ' + data.message);
+    document.getElementById('ef-progress-num').textContent = '0/' + data.total;
+    return;
+  }
+
+  if (data.type === 'progress') {
+    const pct = data.total > 0 ? Math.round((data.current / data.total) * 100) : 0;
+    document.getElementById('ef-bar').style.width = pct + '%';
+    document.getElementById('ef-pct').textContent = pct + '%';
+    document.getElementById('ef-current-lead').textContent = data.lead_name;
+    document.getElementById('ef-progress-num').textContent = data.current + '/' + data.total;
+    if (data.stats) updateEfStats(data.stats);
+    return;
+  }
+
+  if (data.type === 'found') {
+    if (data.stats) updateEfStats(data.stats);
+    const conf = data.confidence === 'high' ? '🟢' : data.confidence === 'medium' ? '🟡' : '🔴';
+    addEfFeed('found', conf + ' ' + esc(data.lead_name) + ' → <strong style="color:var(--accent2)">' + esc(data.email) + '</strong> (' + data.confidence + ')');
+    // Update the leads table live if visible
+    if (document.getElementById('page-leads').classList.contains('active')) {
+      loadLeads();
+    }
+    return;
+  }
+
+  if (data.type === 'not_found') {
+    if (data.stats) updateEfStats(data.stats);
+    addEfFeed('miss', '—  ' + esc(data.lead_name) + ' · ' + esc(data.reason||'not found') + ' (' + (data.pages_checked||0) + ' pages)');
+    return;
+  }
+
+  if (data.type === 'error') {
+    const el = document.getElementById('ef-errors');
+    if (el) el.textContent = parseInt(el.textContent||0) + 1;
+    addEfFeed('error', '⚠ ' + esc(data.lead_name||'') + ': ' + esc(data.message||'error'));
+    return;
+  }
+
+  if (data.type === 'complete') {
+    if (data.stats) updateEfStats(data.stats);
+    document.getElementById('ef-bar').style.width = '100%';
+    document.getElementById('ef-pct').textContent = '100%';
+    document.getElementById('ef-current-lead').textContent = 'Complete!';
+    document.getElementById('ef-btn-start').style.display = 'inline-flex';
+    document.getElementById('ef-btn-stop').style.display = 'none';
+    emailFinderRunning = false;
+    addEfFeed('done', '🎉 ' + data.message);
+    if (document.getElementById('page-leads').classList.contains('active')) loadLeads();
+  }
+}
+
+function updateEfStats(s) {
+  const map = { 'ef-found': s.found, 'ef-notfound': s.not_found, 'ef-errors': s.errors };
+  for (const [id, val] of Object.entries(map)) {
+    const el = document.getElementById(id);
+    if (el && val !== undefined) el.textContent = val;
+  }
+}
+
+function addEfFeed(type, html) {
+  const feed = document.getElementById('ef-feed');
+  const colors = { found: 'var(--accent2)', miss: 'var(--muted)', error: 'var(--accent3)', info: 'var(--accent)', done: 'var(--accent2)' };
+  const div = document.createElement('div');
+  div.innerHTML = '<span style="color:' + (colors[type]||'var(--text)') + '">' + html + '</span>';
+  feed.insertBefore(div, feed.firstChild);
+  while (feed.children.length > 150) feed.removeChild(feed.lastChild);
+}
+
+// Single lead email finder (button in table row)
+async function findEmailSingle(leadId, btn) {
+  const origText = btn.textContent;
+  btn.textContent = '⏳';
+  btn.disabled = true;
+
+  try {
+    const result = await api('POST', '/leads/' + leadId + '/find-email');
+    if (result.success) {
+      btn.textContent = '✅';
+      btn.style.background = 'rgba(0,212,170,.2)';
+      showEmailToast(true, result.email, result.confidence, result.all_emails, result.pages_checked);
+      // Refresh leads table to show the new email
+      setTimeout(() => loadLeads(), 500);
+    } else {
+      btn.textContent = '❌';
+      btn.style.background = 'rgba(255,107,107,.1)';
+      btn.style.color = 'var(--accent3)';
+      showEmailToast(false, null, null, [], result.pages_checked, result.message);
+      setTimeout(() => { btn.textContent = '📧 Find'; btn.style = ''; btn.disabled = false; }, 4000);
+    }
+  } catch(err) {
+    btn.textContent = '❌';
+    btn.disabled = false;
+    showEmailToast(false, null, null, [], 0, err.message);
+    setTimeout(() => { btn.textContent = origText; btn.style = ''; }, 3000);
+  }
+}
+
+function showEmailToast(success, email, confidence, allEmails, pagesChecked, msg) {
+  const toast = document.getElementById('email-toast');
+  const content = document.getElementById('email-toast-content');
+  if (success) {
+    content.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+      + '<span style="font-size:20px">✅</span>'
+      + '<strong style="color:var(--accent2)">Email Found!</strong>'
+      + '</div>'
+      + '<div style="font-family:JetBrains Mono,monospace;color:var(--text);font-size:13px;margin-bottom:6px">' + esc(email) + '</div>'
+      + '<div style="font-size:11px;color:var(--muted)">Confidence: ' + confidence + ' · Checked ' + pagesChecked + ' pages'
+      + (allEmails && allEmails.length > 1 ? ' · ' + allEmails.length + ' emails found total' : '')
+      + '</div>';
+  } else {
+    content.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">'
+      + '<span style="font-size:18px">❌</span>'
+      + '<strong style="color:var(--accent3)">No Email Found</strong>'
+      + '</div>'
+      + '<div style="font-size:12px;color:var(--muted)">' + esc(msg||'No email on website') + '</div>'
+      + (pagesChecked ? '<div style="font-size:11px;color:var(--muted);margin-top:3px">Checked ' + pagesChecked + ' pages</div>' : '');
+  }
+  toast.style.display = 'block';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.display = 'none'; }, 5000);
+}
+
+</script>
+
+
+
+<!-- Send All Modal -->
+<div class="modal-overlay" id="send-all-modal">
+  <div class="modal" style="width:560px;max-width:96vw">
+    <div class="modal-title">📤 Send All Step 1 Emails</div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.6">
+      Sends the first email to every lead that has a pending Step 1 sequence. Follow-up emails will auto-send at their scheduled times.
+    </div>
+
+    <div id="sa-stats" style="display:none;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">
+      <div class="stat-pill stat-passed"><div class="num" id="sa-sent">0</div><div class="lbl">Sent</div></div>
+      <div class="stat-pill stat-errors"><div class="num" id="sa-failed">0</div><div class="lbl">Failed</div></div>
+      <div class="stat-pill stat-discovered"><div class="num" id="sa-progress">0</div><div class="lbl">Processed</div></div>
+    </div>
+
+    <div id="sa-progress-wrap" style="display:none;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+        <span id="sa-current" style="font-family:JetBrains Mono,monospace"></span>
+        <span id="sa-pct">0%</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div id="sa-bar" style="height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px;width:0%;transition:width .3s"></div>
+      </div>
+    </div>
+
+    <div id="sa-feed" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;padding:8px;font-size:12px;font-family:JetBrains Mono,monospace;line-height:1.8"></div>
+
+    <div style="background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.2);border-radius:8px;padding:10px 14px;margin-top:12px;font-size:12px;color:var(--accent4)">
+      ⚠️ Make sure SMTP is configured in your <strong>.env</strong> file before sending. Each email has a 1.5s delay between sends to avoid spam filters.
+    </div>
+
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn btn-outline" onclick="closeModal('send-all-modal');stopSendAll()">Close</button>
+      <button class="btn btn-green" id="sa-btn-start" onclick="startSendAll()">📤 Start Sending</button>
+      <button class="btn btn-danger" id="sa-btn-stop" style="display:none" onclick="stopSendAll()">⏹ Stop</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sequence Editor Modal -->
+<div class="modal-overlay" id="sequence-modal">
+  <div class="modal" style="width:680px;max-width:96vw;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div>
+        <div class="modal-title" id="seq-modal-title" style="margin-bottom:2px">Email Sequence</div>
+        <div id="seq-modal-subtitle" style="font-size:12px;color:var(--accent2);margin-bottom:16px"></div>
+      </div>
+      <button class="btn btn-sm btn-outline" onclick="closeModal('sequence-modal')" style="margin-top:4px">✕ Close</button>
+    </div>
+
+    <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.6">
+      💡 <strong style="color:var(--text)">How it works:</strong> Edit any email, then click <strong>Send Now</strong> on Step 1. Follow-up emails are automatically scheduled and will be sent at their scheduled times. You can send any step manually at any time.
+    </div>
+
+    <div id="seq-steps"></div>
+
+    <div style="text-align:center;margin-top:6px">
+      <button class="btn btn-sm btn-outline" onclick="closeModal('sequence-modal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Email Finder Modal -->
+<div class="modal-overlay" id="email-finder-modal">
+  <div class="modal" style="width:620px;max-width:96vw">
+    <div class="modal-title">📧 Bulk Email Finder</div>
+    <div style="color:var(--muted);font-size:13px;margin-bottom:16px">
+      Crawls each lead's website — checks homepage, contact page, about page, and footer for email addresses. No API needed.
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:140px">
+        <label class="field-label">Campaign filter</label>
+        <select class="input" id="ef-campaign"><option value="">All campaigns</option></select>
+      </div>
+      <div style="flex:1;min-width:120px">
+        <label class="field-label">Max leads</label>
+        <select class="input" id="ef-limit">
+          <option value="20">20 leads</option>
+          <option value="50" selected>50 leads</option>
+          <option value="100">100 leads</option>
+          <option value="200">200 leads</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding-bottom:2px">
+          <input type="checkbox" id="ef-only-missing" checked style="width:14px;height:14px;accent-color:var(--accent2)">
+          Only leads without email
+        </label>
+      </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div id="ef-stats" style="display:none;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+      <div class="stat-pill stat-passed"><div class="num" id="ef-found">0</div><div class="lbl">Found</div></div>
+      <div class="stat-pill stat-filtered"><div class="num" id="ef-notfound">0</div><div class="lbl">Not Found</div></div>
+      <div class="stat-pill stat-discovered"><div class="num" id="ef-progress-num">0</div><div class="lbl">Checked</div></div>
+      <div class="stat-pill stat-errors"><div class="num" id="ef-errors">0</div><div class="lbl">Errors</div></div>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="ef-progress-wrap" style="display:none;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+        <span id="ef-current-lead" style="font-family:JetBrains Mono,monospace"></span>
+        <span id="ef-pct">0%</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+        <div id="ef-bar" style="height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:3px;width:0%;transition:width .3s"></div>
+      </div>
+    </div>
+
+    <!-- Live feed -->
+    <div id="ef-feed" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;max-height:260px;overflow-y:auto;padding:8px;display:none;font-size:12px;font-family:JetBrains Mono,monospace;line-height:1.8">
+    </div>
+
+    <div id="ef-alert" style="margin-top:10px"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn btn-outline" onclick="closeModal('email-finder-modal');stopEmailFinder()">Close</button>
+      <button class="btn btn-accent" id="ef-btn-start" onclick="startBulkEmailFinder()">🔍 Start Finding Emails</button>
+      <button class="btn btn-danger" id="ef-btn-stop" style="display:none" onclick="stopEmailFinder()">⏹ Stop</button>
+    </div>
+  </div>
+</div>
+
+<!-- Single Email Find result toast -->
+<div id="email-toast" style="position:fixed;bottom:24px;right:24px;z-index:2000;display:none">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;box-shadow:0 8px 32px rgba(0,0,0,.4);min-width:300px;max-width:420px">
+    <div id="email-toast-content"></div>
+  </div>
+</div>
+
+</body>
+</html>

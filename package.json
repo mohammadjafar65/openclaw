@@ -1,0 +1,39 @@
+{
+  "name": "openclaw-b2b",
+  "version": "1.0.0",
+  "description": "OpenClaw B2B Lead Generation & Outreach Automation System",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "setup": "node scripts/setup.js",
+    "worker": "node workers/cron.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.20.9",
+    "axios": "^1.13.5",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "dns": "^0.2.2",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "express-rate-limit": "^7.5.1",
+    "handlebars": "^4.7.8",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^1.4.5-lts.2",
+    "mysql2": "^3.18.0",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.1",
+    "uuid": "^9.0.1",
+    "validator": "^13.15.26"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
