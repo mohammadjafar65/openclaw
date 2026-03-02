@@ -184,4 +184,36 @@ router.get('/:id/dashboard', async (req, res) => {
   }
 });
 
+// POST /api/campaigns/:id/clear-data
+router.post('/:id/clear-data', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const campaign = await queryOne('SELECT * FROM campaigns WHERE id = ?', [id]);
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    // 1. Delete replies for leads in this campaign
+    await execute(
+      `DELETE FROM replies WHERE lead_id IN (SELECT id FROM leads WHERE campaign_id = ?)`,
+      [id]
+    );
+
+    // 2. Delete outreach sequences for leads in this campaign
+    await execute(
+      `DELETE FROM outreach_sequences WHERE lead_id IN (SELECT id FROM leads WHERE campaign_id = ?)`,
+      [id]
+    );
+
+    // 3. Delete leads in this campaign
+    const result = await execute(
+      `DELETE FROM leads WHERE campaign_id = ?`,
+      [id]
+    );
+
+    res.json({ message: `Cleared ${result.affectedRows} leads and all associated outreach data` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

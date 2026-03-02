@@ -415,7 +415,10 @@ label.field-label{display:block;font-size:11px;color:var(--muted);margin-bottom:
       <!-- CAMPAIGN DETAIL DASHBOARD -->
       <div id="page-campaign-detail" class="page">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-          <button class="btn btn-outline btn-sm" onclick="showPage('campaigns')">← Back to Campaigns</button>
+          <div style="display:flex;gap:12px;align-items:center">
+             <button class="btn btn-outline btn-sm" onclick="showPage('campaigns')">← Back to Campaigns</button>
+             <button class="btn btn-sm" style="color:var(--accent3);border:1px solid rgba(255,107,107,.3);background:rgba(255,107,107,.1)" onclick="clearCampaignData()">🗑 Clear Data</button>
+          </div>
           <div style="display:flex;gap:10px">
              <button class="btn btn-accent" onclick="triggerSend('initial')">Send Initial Batch</button>
              <button class="btn btn-green" onclick="triggerSend('followup')">Send Follow-ups</button>
@@ -449,6 +452,9 @@ label.field-label{display:block;font-size:11px;color:var(--muted);margin-bottom:
       <div id="page-leads" class="page">
         <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
           <input class="input" style="max-width:220px" type="text" id="lead-search" placeholder="Search..." oninput="filterLeads()">
+          <select class="input" style="width:auto;max-width:200px" id="lead-filter-campaign" onchange="filterLeads()">
+            <option value="">All Campaigns</option>
+          </select>
           <select class="input" style="width:auto" id="lead-filter-status" onchange="filterLeads()">
             <option value="">All Statuses</option>
             <option value="new">New</option>
@@ -905,13 +911,25 @@ function showScrapeAlert(msg, type) {
 async function loadCampaignsIntoSelect() {
   try {
     const { campaigns } = await api('GET', '/campaigns');
-    const sel = document.getElementById('sc-campaign');
-    sel.innerHTML = '<option value="">No campaign</option>';
-    (campaigns||[]).forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.name;
-      sel.appendChild(opt);
+    const selectors = ['sc-campaign', 'ef-campaign', 'lead-filter-campaign', 'outreach-filter-campaign'];
+    
+    selectors.forEach(fid => {
+      const sel = document.getElementById(fid);
+      if (!sel) return;
+      
+      const currentVal = sel.value;
+      // Keep "All" or "No campaign" as first option
+      const firstOpt = sel.firstElementChild ? sel.firstElementChild.outerHTML : '<option value="">All Campaigns</option>';
+      
+      sel.innerHTML = firstOpt;
+      (campaigns||[]).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+      });
+      // Restore value if possible
+      if (currentVal) sel.value = currentVal;
     });
   } catch {}
 }
@@ -1086,10 +1104,14 @@ async function loadLeads() {
     const search = document.getElementById('lead-search')?.value||'';
     const status = document.getElementById('lead-filter-status')?.value||'';
     const tier   = document.getElementById('lead-filter-tier')?.value||'';
+    const campaignId = document.getElementById('lead-filter-campaign')?.value||'';
+    
     let qs = '?limit=200';
     if (search) qs += '&search=' + encodeURIComponent(search);
     if (status) qs += '&status=' + status;
     if (tier)   qs += '&queue_tier=' + tier;
+    if (campaignId) qs += '&campaign_id=' + campaignId;
+    
     const { leads, pagination } = await api('GET', '/leads' + qs);
     currentLeads = leads || [];
     if (!currentLeads.length) {
@@ -1113,9 +1135,13 @@ async function loadLeads() {
       const phoneCell = l.phone
         ? '<a href="tel:' + esc(l.phone) + '" style="color:var(--text);white-space:nowrap;font-size:12px">' + esc(l.phone) + '</a>'
         : '<span style="color:var(--muted)">—</span>';
+      
+      const campaignInfo = (!campaignId && l.campaign_name) ? `<div style="font-size:10px;color:var(--muted);margin-top:2px">📂 ${esc(l.campaign_name)}</div>` : '';
+
       rows += '<tr>'
         + '<td><strong style="cursor:pointer;color:var(--accent)" onclick="viewLead(' + l.id + ')">' + esc(l.business_name) + '</strong>'
-        + '<br><small style="color:var(--muted)">' + esc(l.city||'') + (l.state ? ', ' + l.state : '') + '</small></td>'
+        + '<br><small style="color:var(--muted)">' + esc(l.city||'') + (l.state ? ', ' + l.state : '') + '</small>'
+        + campaignInfo + '</td>'
         + '<td><span class="star">★</span> ' + (l.rating||'—') + '<br><small style="color:var(--muted)">' + (l.review_count||0) + ' reviews</small></td>'
         + '<td style="max-width:170px">' + siteCell + '</td>'
         + '<td style="max-width:190px">' + emailCell + '</td>'
@@ -1222,19 +1248,38 @@ async function loadOutreach() {
 
 async function loadComposeTab() {
   const el = document.getElementById('ot-body');
+  
+  // Persist filter value if exists
+  const existingFilter = document.getElementById('outreach-filter-campaign');
+  let currentCampaignId = existingFilter ? existingFilter.value : '';
+
   el.innerHTML = '<div class="loading"><span class="spin"></span>Loading leads...</div>';
   try {
-    const { leads } = await api('GET', '/outreach/leads-ready');
-    if (!leads || !leads.length) {
+    let qs = '';
+    if (currentCampaignId) qs = '?campaign_id=' + currentCampaignId;
+    
+    const { leads } = await api('GET', '/outreach/leads-ready' + qs);
+    
+    // Check if empty but allow filter
+    if ((!leads || !leads.length) && !currentCampaignId) {
       el.innerHTML = '<div class="empty-state"><h3>No leads with email yet</h3><p>Go to Leads → Find All Emails first</p></div>';
+      // Still need to populate selector in a real app, but empty state usually implies no data at all. 
+      // However, if we have campaigns but no leads, we might want to switch campaigns. 
+      // For now, let's render the bar even if empty, or just simple empty state. 
+      // Let's stick to the existing empty state for "no leads at all".
       return;
     }
-    const noSeq = leads.filter(l => l.seq_count == 0);
-    const hasSeq = leads.filter(l => l.seq_count > 0);
+
+    const noSeq = leads ? leads.filter(l => l.seq_count == 0) : [];
+    const hasSeq = leads ? leads.filter(l => l.seq_count > 0) : [];
+    
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
-        <div style="font-size:13px;color:var(--muted)">${leads.length} leads with email &nbsp;·&nbsp; <span style="color:var(--accent2)">${noSeq.length} ready to generate</span> &nbsp;·&nbsp; <span style="color:var(--accent)">${hasSeq.length} have sequence</span></div>
+        <div style="font-size:13px;color:var(--muted)">${leads ? leads.length : 0} leads with email &nbsp;·&nbsp; <span style="color:var(--accent2)">${noSeq.length} ready</span></div>
         <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+          <select class="input" style="width:auto;max-width:160px;font-size:12px" id="outreach-filter-campaign" onchange="loadComposeTab()">
+            <option value="">All Campaigns</option>
+          </select>
           <select class="input" style="width:auto;font-size:12px" id="followup-days">
             <option value="2">Follow-ups every 2 days</option>
             <option value="3">Every 3 days</option>
@@ -1243,15 +1288,21 @@ async function loadComposeTab() {
           </select>
           <button class="btn btn-sm" style="background:rgba(108,99,255,.15);color:var(--accent);border:1px solid rgba(108,99,255,.3)" onclick="generateForAll()">⚡ Generate All</button>
           <button class="btn btn-sm" style="background:rgba(255,107,107,.1);color:var(--accent3);border:1px solid rgba(255,107,107,.3)" onclick="regenerateAll()">↺ Regenerate All</button>
-          <button class="btn btn-sm" style="background:rgba(255,107,107,.15);color:var(--accent3);border:1px solid rgba(255,107,107,.4)" onclick="clearSequences('all');setTimeout(loadComposeTab,600)">🗑 Clear All</button>
-          <button class="btn btn-green btn-sm" onclick="openSendAllModal()">📤 Send All Now</button>
+          <button class="btn btn-sm" style="background:rgba(255,107,107,.15);color:var(--accent3);border:1px solid rgba(255,107,107,.4)" onclick="clearSequences('all');setTimeout(loadComposeTab,600)">🗑 Clear</button>
+          <button class="btn btn-green btn-sm" onclick="openSendAllModal()">📤 Send All</button>
         </div>
       </div>
       <div id="bulk-alert" style="margin-bottom:10px"></div>
       <div id="compose-list">
-        ${leads.map(l => renderComposeRow(l)).join('')}
+        ${leads && leads.length ? leads.map(l => renderComposeRow(l)).join('') : '<div class="empty-state" style="padding:20px">No leads found for this campaign</div>'}
       </div>
     `;
+
+    // Populate filter and restore value
+    await loadCampaignsIntoSelect();
+    const newFilter = document.getElementById('outreach-filter-campaign');
+    if (newFilter && currentCampaignId) newFilter.value = currentCampaignId;
+
   } catch(e) { el.innerHTML = '<div class="alert alert-error">' + e.message + '</div>'; }
 }
 
@@ -2143,6 +2194,18 @@ async function triggerSend(type) {
     const res = await api('POST', '/outreach/process-now', { stepType: type });
     alert(res.message);
     if (currentCampaignId) openCampaignDashboard(currentCampaignId);
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+async function clearCampaignData() {
+  if (!confirm('WARNING: This will delete ALL leads, email sequences, and replies for this campaign.\n\nThis action cannot be undone. Are you sure?')) return;
+  
+  try {
+    const res = await api('POST', '/campaigns/' + currentCampaignId + '/clear-data');
+    alert(res.message);
+    openCampaignDashboard(currentCampaignId); // Refresh
   } catch(e) {
     alert('Error: ' + e.message);
   }

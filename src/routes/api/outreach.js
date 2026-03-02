@@ -134,16 +134,25 @@ module.exports = router;
 // GET /api/outreach/leads-ready — leads with email, no active sequence
 router.get('/leads-ready', async (req, res) => {
   try {
-    const leads = await query(`
+    const { campaign_id } = req.query;
+    let sql = `
       SELECT l.id, l.business_name, l.city, l.state, l.owner_email, l.email_confidence,
              l.website_status, l.maps_website, l.website_url, l.rating, l.review_count,
-             l.ai_score, l.queue_tier, l.category, l.phone,
+             l.ai_score, l.queue_tier, l.category, l.phone, c.name as campaign_name,
              (SELECT COUNT(*) FROM outreach_sequences os WHERE os.lead_id = l.id) as seq_count,
              (SELECT COUNT(*) FROM outreach_sequences os WHERE os.lead_id = l.id AND os.status='sent') as sent_count
       FROM leads l
+      LEFT JOIN campaigns c ON l.campaign_id = c.id
       WHERE l.owner_email IS NOT NULL AND l.owner_email != ''
-      ORDER BY l.ai_score DESC, l.queue_tier ASC
-    `);
+    `;
+    const params = [];
+    if (campaign_id) {
+      sql += ' AND l.campaign_id = ?';
+      params.push(campaign_id);
+    }
+    sql += ' ORDER BY l.ai_score DESC, l.queue_tier ASC';
+
+    const leads = await query(sql, params);
     res.json({ leads });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
