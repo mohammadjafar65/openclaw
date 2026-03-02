@@ -131,4 +131,57 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /api/campaigns/:id/dashboard
+router.get('/:id/dashboard', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 1. Campaign Details
+    const campaign = await queryOne('SELECT * FROM campaigns WHERE id = ?', [id]);
+    if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+    // 2. Stats
+    const stats = await queryOne(`
+      SELECT 
+        COUNT(*) as total_leads,
+        SUM(CASE WHEN status='outreach_active' THEN 1 ELSE 0 END) as active_leads,
+        SUM(CASE WHEN status='replied' THEN 1 ELSE 0 END) as replied_leads,
+        SUM(CASE WHEN status='won' THEN 1 ELSE 0 END) as won_leads
+      FROM leads WHERE campaign_id = ?`, [id]);
+
+    const emailStats = await queryOne(`
+      SELECT 
+        SUM(CASE WHEN status='sent' THEN 1 ELSE 0 END) as sent,
+        SUM(CASE WHEN status='opened' THEN 1 ELSE 0 END) as opened,
+        SUM(CASE WHEN status='replied' THEN 1 ELSE 0 END) as replied,
+        SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) as failed
+      FROM outreach_sequences WHERE campaign_id = ?`, [id]);
+
+    // 3. Leads with outreach summary
+    // We want to know the *latest* status of email for each lead
+    const leads = await query(`
+      SELECT l.id, l.business_name, l.owner_name, l.owner_email, l.status, l.ai_score,
+             (SELECT status FROM outreach_sequences os WHERE os.lead_id = l.id ORDER BY step DESC LIMIT 1) as last_email_status,
+             (SELECT step FROM outreach_sequences os WHERE os.lead_id = l.id ORDER BY step DESC LIMIT 1) as current_step,
+             (SELECT send_at FROM outreach_sequences os WHERE os.lead_id = l.id ORDER BY step DESC LIMIT 1) as next_email_at
+      FROM leads l
+      WHERE l.campaign_id = ?
+      ORDER BY l.ai_score DESC
+      LIMIT 100`, [id]);
+
+    // 4. Replies
+    const replies = await query(`
+      SELECT r.*, l.business_name, l.owner_email 
+      FROM replies r
+      JOIN leads l ON r.lead_id = l.id
+      WHERE l.campaign_id = ?
+      ORDER BY r.received_at DESC
+      LIMIT 50`, [id]);
+
+    res.json({ campaign, stats: { ...stats, ...emailStats }, leads, replies });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

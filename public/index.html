@@ -412,6 +412,39 @@ label.field-label{display:block;font-size:11px;color:var(--muted);margin-bottom:
         <div id="campaigns-content"><div class="loading"><span class="spin"></span>Loading...</div></div>
       </div>
 
+      <!-- CAMPAIGN DETAIL DASHBOARD -->
+      <div id="page-campaign-detail" class="page">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <button class="btn btn-outline btn-sm" onclick="showPage('campaigns')">← Back to Campaigns</button>
+          <div style="display:flex;gap:10px">
+             <button class="btn btn-accent" onclick="triggerSend('initial')">Send Initial Batch</button>
+             <button class="btn btn-green" onclick="triggerSend('followup')">Send Follow-ups</button>
+          </div>
+        </div>
+
+        <div class="grid grid-4" id="cd-stats" style="margin-bottom:20px"></div>
+
+        <div style="margin-top:24px">
+          <h3 style="margin-bottom:12px;font-size:14px">Leads & Status</h3>
+          <div class="card" style="padding:0;overflow:hidden">
+            <div class="table-wrap">
+              <table id="cd-leads-table">
+                <thead>
+                  <tr>
+                    <th>Business</th>
+                    <th>Email Status</th>
+                    <th>Step</th>
+                    <th>Next Email</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- LEADS -->
       <div id="page-leads" class="page">
         <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
@@ -953,8 +986,8 @@ async function loadCampaigns() {
     el.innerHTML = `<div class="card"><div class="table-wrap"><table>
       <thead><tr><th>Campaign</th><th>Niche</th><th>Region</th><th>Leads</th><th>Status</th><th>Actions</th></tr></thead>
       <tbody>${campaigns.map(c=>`<tr>
-        <td><strong>${esc(c.name)}</strong></td>
-        <td>${esc(c.niche)}${c.micro_niche?`<br><span style="font-size:11px;color:var(--muted)">${esc(c.micro_niche)}</span>`:''}</td>
+        <td><strong style="cursor:pointer;color:var(--accent2)" onclick="openCampaignDashboard(${c.id})">${esc(c.name)}</strong></td>
+        <td>${esc(c.niche)}${c.micro_niche?`<br><span style="color:var(--muted)">${esc(c.micro_niche)}</span>`:''}</td>
         <td>${esc(c.region)}</td>
         <td>${c.lead_count||0}</td>
         <td><span class="badge badge-${c.status}">${c.status}</span></td>
@@ -2026,5 +2059,100 @@ function showEmailToast(success, email, confidence, allEmails, pagesChecked, msg
   </div>
 </div>
 
+
+<script>
+// ── CAMPAIGN DASHBOARD ───────────────────────────────────
+
+let currentCampaignId = null;
+
+async function openCampaignDashboard(id) {
+  currentCampaignId = id;
+  showPage('campaign-detail');
+  document.getElementById('cd-stats').innerHTML = '<div class="loading"><span class="spin"></span>Loading stats...</div>';
+  document.querySelector('#cd-leads-table tbody').innerHTML = '';
+
+  try {
+    const data = await api('GET', '/campaigns/' + id + '/dashboard');
+    renderCampaignStats(data.stats);
+    renderCampaignLeads(data.leads);
+  } catch(e) {
+    document.getElementById('cd-stats').innerHTML = `<div class="alert alert-error">${e.message}</div>`;
+  }
+}
+
+function renderCampaignStats(s) {
+  const mkStat = (lbl, val, cls) => `
+    <div class="card">
+      <div class="card-title">${lbl}</div>
+      <div class="metric ${cls}">${val||0}</div>
+    </div>`;
+  
+  document.getElementById('cd-stats').innerHTML = 
+    mkStat('Total Leads', s.total_leads, '') +
+    mkStat('Emails Sent', s.sent, 'text-accent') +
+    mkStat('Emails Opened', s.opened, 'text-accent2') +
+    mkStat('Replies', s.replied, 'text-accent3');
+}
+
+function renderCampaignLeads(leads) {
+  const tbody = document.querySelector('#cd-leads-table tbody');
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No leads yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = leads.map(l => {
+    let statusIcon = '⚪'; // pending/none
+    let statusText = 'Pending';
+    
+    // logic based on l.last_email_status
+    if (l.last_email_status === 'sent') { statusIcon = '✅'; statusText = 'Sent'; }
+    if (l.last_email_status === 'opened') { statusIcon = '👀'; statusText = 'Opened'; }
+    if (l.last_email_status === 'replied') { statusIcon = '💬'; statusText = 'Replied'; }
+    if (l.last_email_status === 'failed') { statusIcon = '❌'; statusText = 'Failed'; }
+
+    // Next email
+    let next = '-';
+    if (l.next_email_status === 'pending' && l.next_email_at) {
+      next = new Date(l.next_email_at).toLocaleDateString();
+    }
+
+    return `<tr>
+      <td>
+        <div style="font-weight:600">${esc(l.business_name)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esc(l.owner_name||'')} &lt;${esc(l.owner_email||'unknown')}&gt;</div>
+      </td>
+      <td>
+        <span class="badge badge-none" style="background:rgba(255,255,255,.05);color:var(--text)">
+          ${statusIcon} ${statusText}
+        </span>
+      </td>
+      <td>${l.current_step || '-'}</td>
+      <td>${l.next_email_at ? new Date(l.next_email_at).toLocaleDateString() : '-'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="openSequenceEdit(${l.id})">Sequence</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function triggerSend(type) {
+  if (!confirm(`Are you sure you want to send all pending ${type === 'initial' ? 'Step 1' : 'Follow-up'} emails now?`)) return;
+  
+  try {
+    const res = await api('POST', '/outreach/process-now', { stepType: type });
+    alert(res.message);
+    if (currentCampaignId) openCampaignDashboard(currentCampaignId);
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+// Ensure showPage handles the new page ID if needed (usually it just toggles classes)
+// If the original showPage expects specific IDs, we might need to modify it, 
+// but based on typical implementation: document.querySelectorAll('.page').forEach(el => el.classList.remove('active')); document.getElementById('page-'+id).classList.add('active');
+// it should work.
+
+</script>
 </body>
 </html>

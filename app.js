@@ -137,6 +137,7 @@ function mountRoutes(prefix) {
   app.use(`${prefix}/outreach`,  require('./src/routes/api/outreach'));
   app.use(`${prefix}/dashboard`, require('./src/routes/api/dashboard'));
   app.use(`${prefix}/settings`,  require('./src/routes/api/settings'));
+  app.use(`${prefix}/track`,     require('./src/routes/api/track'));
 }
 
 mountRoutes(`${BASE_URI}/api`);

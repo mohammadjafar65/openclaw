@@ -57,8 +57,9 @@ router.get('/stats', async (req, res) => {
 // POST /api/outreach/process-now — manually trigger email sending
 router.post('/process-now', async (req, res) => {
   try {
-    const count = await processPendingEmails();
-    res.json({ message: `Processed ${count} emails` });
+    const { stepType } = req.body; // 'initial', 'followup', or undefined/'all'
+    const count = await processPendingEmails({ stepType });
+    res.json({ message: `Processed ${count} emails (${stepType || 'all'})` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

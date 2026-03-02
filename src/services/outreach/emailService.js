@@ -77,13 +77,16 @@ async function sendSequenceEmail(sequenceRecord, options = {}) {
   }
 
   try {
-    const trans = getTransporter();
+    const baseUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const trackingPixel = `<img src="${baseUrl}/api/track/open/${id}" width="1" height="1" style="display:none;" alt="" />`;
+    const htmlBody = textToHtml(body).replace('</body>', `${trackingPixel}</body>`);
+
     const mailOptions = {
       from:    `"${process.env.SMTP_FROM_NAME}" <${process.env.SMTP_FROM_EMAIL}>`,
       to:      lead.owner_email,
       subject: subject,
       text:    body,
-      html:    textToHtml(body),
+      html:    htmlBody,
       headers: {
         'X-Lead-ID': String(lead_id),
         'X-Sequence-ID': String(id),
@@ -116,8 +119,14 @@ async function sendSequenceEmail(sequenceRecord, options = {}) {
 
 /**
  * Process all pending sequence emails due for sending
+ * @param {Object} options - { stepType: 'initial' | 'followup' | 'all' }
  */
-async function processPendingEmails() {
+async function processPendingEmails(options = {}) {
+  const { stepType = 'all' } = options;
+  let stepSql = '';
+  if (stepType === 'initial') stepSql = 'AND os.step = 1';
+  if (stepType === 'followup') stepSql = 'AND os.step > 1';
+
   const pending = await query(
     `SELECT os.*, l.owner_email 
      FROM outreach_sequences os
@@ -126,6 +135,7 @@ async function processPendingEmails() {
      AND os.channel = 'email'
      AND os.send_at <= NOW()
      AND l.status NOT IN ('dnc', 'won', 'lost')
+     ${stepSql}
      ORDER BY os.send_at ASC
      LIMIT 20`
   );
