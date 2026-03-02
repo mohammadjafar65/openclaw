@@ -1131,7 +1131,7 @@ async function loadLeads() {
       const emailCell = l.owner_email
         ? '<a href="mailto:' + esc(l.owner_email) + '" style="color:var(--accent2);font-size:12px;word-break:break-all">' + esc(l.owner_email) + '</a>'
           + (l.email_confidence ? '<br><small style="color:var(--muted)">' + esc(l.email_confidence) + ' confidence</small>' : '')
-        : '<span style="color:var(--muted);font-size:12px">—</span>';
+        : '<button class="btn btn-sm" style="font-size:10px;padding:2px 6px;opacity:0.7" onclick="addManualEmail(' + l.id + ')">+ Add Email</button>';
       const phoneCell = l.phone
         ? '<a href="tel:' + esc(l.phone) + '" style="color:var(--text);white-space:nowrap;font-size:12px">' + esc(l.phone) + '</a>'
         : '<span style="color:var(--muted)">—</span>';
@@ -2219,3 +2219,43 @@ async function clearCampaignData() {
 </script>
 </body>
 </html>
+
+<!-- Manual Email Modal -->
+<div class="modal-overlay" id="manual-email-modal">
+  <div class="modal" style="width:380px">
+    <div class="modal-title">📧 Add Email Manually</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Enter a valid email address for this lead.</div>
+    <input type="hidden" id="manual-email-lead-id">
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" class="input" id="manual-email-input" placeholder="e.g. contact@business.com">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('manual-email-modal')">Cancel</button>
+      <button class="btn btn-accent" onclick="saveManualEmail()">Save Email</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function addManualEmail(leadId) {
+  document.getElementById('manual-email-lead-id').value = leadId;
+  document.getElementById('manual-email-input').value = '';
+  openModal('manual-email-modal');
+  setTimeout(() => document.getElementById('manual-email-input').focus(), 100);
+}
+
+async function saveManualEmail() {
+  const leadId = document.getElementById('manual-email-lead-id').value;
+  const email = document.getElementById('manual-email-input').value;
+  if (!email || !email.includes('@')) return alert('Please enter a valid email');
+
+  try {
+    await api('PUT', '/leads/' + leadId, { owner_email: email, email_confidence: 'manual' });
+    closeModal('manual-email-modal');
+    loadLeads(); // Refresh table
+  } catch(e) {
+    alert(e.message);
+  }
+}
+</script>
