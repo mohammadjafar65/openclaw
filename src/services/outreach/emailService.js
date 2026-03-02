@@ -84,6 +84,7 @@ async function sendSequenceEmail(sequenceRecord, options = {}) {
     const mailOptions = {
       from:    `"${process.env.SMTP_FROM_NAME}" <${process.env.SMTP_FROM_EMAIL}>`,
       to:      lead.owner_email,
+      bcc:     process.env.SMTP_BCC || process.env.SMTP_COPY_EMAIL || process.env.SMTP_USER, // Send copy to self
       subject: subject,
       text:    body,
       html:    htmlBody,
@@ -93,7 +94,8 @@ async function sendSequenceEmail(sequenceRecord, options = {}) {
       },
     };
 
-    const info = await trans.sendMail(mailOptions);
+    const transporter = getTransporter();
+    const info = await transporter.sendMail(mailOptions);
 
     await execute(
       'UPDATE outreach_sequences SET status = "sent", sent_at = NOW(), message_id = ? WHERE id = ?',
