@@ -166,7 +166,7 @@ async function boot() {
     });
     startCronJobs();
   } catch (err) {
-    console.error('[BOOT] Fatal error:', err.message);
+    console.error('[BOOT] Fatal error:', err);
     process.exit(1);
   }
 }

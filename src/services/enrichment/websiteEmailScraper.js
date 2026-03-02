@@ -251,58 +251,6 @@ function extractMetadata(html) {
   return meta;
 }
 
-  // 1. mailto: links — highest priority
-  const mailtoRegex = /mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/gi;
-  let match;
-  while ((match = mailtoRegex.exec(html)) !== null) {
-    const email = match[1].toLowerCase().trim();
-    if (!seen.has(email) && isValidEmail(email)) {
-      seen.add(email);
-      results.push({ email, priority: 5, source: 'mailto link' });
-    }
-  }
-
-  // 2. Emails in contact/info sections — medium-high
-  const contactSectionRegex = /<(?:div|section|footer|address|p)[^>]*(?:contact|footer|info|reach)[^>]*>([^<]*(?:<[^>]+>[^<]*)*)<\/(?:div|section|footer|address|p)>/gi;
-  while ((match = contactSectionRegex.exec(html)) !== null) {
-    const section = match[1];
-    const emails = section.match(EMAIL_REGEX) || [];
-    for (const email of emails) {
-      const e = email.toLowerCase().trim();
-      if (!seen.has(e) && isValidEmail(e)) {
-        seen.add(e);
-        results.push({ email: e, priority: 4, source: 'contact section' });
-      }
-    }
-  }
-
-  // 3. Decode obfuscated emails — e.g. "info [at] domain [dot] com"
-  const obfuscated = html.match(/[a-zA-Z0-9._%+\-]+\s*[\[\(]at[\]\)]\s*[a-zA-Z0-9.\-]+\s*[\[\(]dot[\]\)]\s*[a-zA-Z]{2,}/gi) || [];
-  for (const raw of obfuscated) {
-    const email = raw
-      .replace(/\s*[\[\(]at[\]\)]\s*/i, '@')
-      .replace(/\s*[\[\(]dot[\]\)]\s*/gi, '.')
-      .replace(/\s/g, '')
-      .toLowerCase();
-    if (!seen.has(email) && isValidEmail(email)) {
-      seen.add(email);
-      results.push({ email, priority: 4, source: 'obfuscated' });
-    }
-  }
-
-  // 4. All raw email matches in page text
-  const allEmails = html.match(EMAIL_REGEX) || [];
-  for (const email of allEmails) {
-    const e = email.toLowerCase().trim();
-    if (!seen.has(e) && isValidEmail(e)) {
-      seen.add(e);
-      results.push({ email: e, priority: 2, source: 'page text' });
-    }
-  }
-
-  return results.filter(r => !shouldIgnore(r.email));
-}
-
 // ── CONTACT LINK EXTRACTOR ────────────────────────────────
 function extractContactLinks(html, baseUrl) {
   const links = [];
