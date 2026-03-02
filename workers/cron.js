@@ -5,6 +5,7 @@ const { searchGoogleMaps } = require('../src/services/scraper/googleMapsService'
 const { verifyWebsiteStatus } = require('../src/services/scraper/websiteVerifier');
 const { applyFilters, deduplicateLeads } = require('../src/services/scraper/filterEngine');
 const { findContactEmail, validateEmail } = require('../src/services/enrichment/contactFinder');
+const { findEmailsFromWebsite } = require('../src/services/enrichment/websiteEmailScraper');
 const { scoreLead } = require('../src/services/enrichment/aiScorer');
 const { createSequenceForLead } = require('../src/services/outreach/sequenceManager');
 const { processPendingEmails } = require('../src/services/outreach/emailService');
@@ -160,8 +161,32 @@ async function handleEnrich(job) {
     lead.source_reviews = JSON.parse(lead.source_reviews || '[]');
   }
 
-  // Find contact email
+  // 1. Scrape Website for Design Signals & Emails
+  const webData = await findEmailsFromWebsite(lead);
+  
+  // Inject website data into lead for AI scoring
+  lead.website_data = webData.website_data || {};
+  lead.scraped_emails = webData.emails || [];
+
+  // Update raw_data with website insights
+  const rawData = typeof lead.raw_data === 'string' 
+    ? JSON.parse(lead.raw_data || '{}') 
+    : (lead.raw_data || {});
+  
+  rawData.website_analysis = lead.website_data;
+  
+  await execute('UPDATE leads SET raw_data = ? WHERE id = ?', [JSON.stringify(rawData), lead_id]);
+
+  // Find contact email (using scraped emails first)
   const contactResult = await findContactEmail(lead);
+  
+  // Combine scraped emails with contact finder results
+  if (webData.best_email && !contactResult.email) {
+      contactResult.email = webData.best_email;
+      contactResult.confidence = webData.confidence;
+      contactResult.method = 'website_scrape';
+  }
+
   if (contactResult.email) {
     const isValid = await validateEmail(contactResult.email);
     if (isValid) {

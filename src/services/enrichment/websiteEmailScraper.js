@@ -48,6 +48,7 @@ async function findEmailsFromWebsite(lead) {
   const domain = extractDomain(baseUrl);
   const found  = new Map(); // email → { source, priority }
   const checked = [];
+  let websiteData = {};
 
   // 1. Try all contact paths
   for (const path of CONTACT_PATHS) {
@@ -60,11 +61,27 @@ async function findEmailsFromWebsite(lead) {
       const html = await fetchPage(url);
       if (!html) continue;
 
+      if (path === '/') {
+          websiteData = extractMetadata(html);
+          // Only fetch homepage once
+      }
+
       checked.push(url);
       const emails = extractEmailsFromHtml(html, domain);
 
-      for (const { email, priority, source } of emails) {
-        if (!found.has(email) || found.get(email).priority < priority) {
+      for (const item of emails) {
+        // extractEmailsFromHtml returns objects {email, priority, source}
+        // but due to previous edit, it returns slightly different structure.
+        // Wait, my previous edit introduced extractEmailsFromHtml returning `[{email, priority, source}]`
+        // But the consuming code expects `{email, priority, source}` loop.
+        // Let's check extractEmailsFromHtml again.
+        // My previous edit replaced the entire function `extractEmailsFromHtml`.
+        // The return is `results.push({ email, priority, source: 'html_body' })`.
+        // So `emails` is an array of objects.
+        // The loop below expects `const { email, priority, source } of emails`. This is correct.
+        
+        const { email, priority, source } = item;
+        if (!found.has(email) || (found.get(email) && found.get(email).priority < priority)) {
           found.set(email, { source: url + ' (' + source + ')', priority });
         }
       }
@@ -121,6 +138,7 @@ async function findEmailsFromWebsite(lead) {
     source:        best?.source || null,
     pages_checked: checked.length,
     all_found:     scored,
+    website_data:  websiteData || {},
   };
 }
 
@@ -144,10 +162,94 @@ async function fetchPage(url) {
   }
 }
 
-// ── EMAIL EXTRACTOR ───────────────────────────────────────
+// ── EMAIL & DATA EXTRACTOR ────────────────────────────────
 function extractEmailsFromHtml(html, domain) {
   const results = [];
   const seen = new Set();
+  
+  // Extract emails using regex
+  let match;
+  while ((match = EMAIL_REGEX.exec(html)) !== null) {
+    let email = match[0].toLowerCase();
+    
+    // Filter out common junk
+    if (IGNORE_PATTERNS.some(p => p.test(email))) continue;
+    
+    // Check if it's from the same domain (higher priority)
+    const emailDomain = email.split('@')[1];
+    let priority = 0;
+    
+    if (emailDomain === domain) priority += 5;
+    if (email.startsWith('info') || email.startsWith('contact') || email.startsWith('hello')) priority += 2;
+    if (email.startsWith('sales') || email.startsWith('support')) priority += 1;
+    
+    if (!seen.has(email)) {
+      seen.add(email);
+      results.push({ email, priority, source: 'html_body' });
+    }
+  }
+
+  // Also look for mailto: links which might be obfuscated in text
+  const mailtoRegex = /href=["']mailto:([^"']+)["']/g;
+  while ((match = mailtoRegex.exec(html)) !== null) {
+    let email = match[1].split('?')[0].toLowerCase();
+    if (IGNORE_PATTERNS.some(p => p.test(email))) continue;
+    
+    if (!seen.has(email)) {
+      seen.add(email);
+      results.push({ email, priority: 8, source: 'mailto_link' });
+    }
+  }
+
+  return results;
+}
+
+function extractMetadata(html) {
+  const meta = {
+    title: '',
+    description: '',
+    copyright_year: null,
+    generator: null,
+    is_responsive: false,
+    technologies: []
+  };
+
+  try {
+    // Title
+    const titleMatch = /<title>(.*?)<\/title>/i.exec(html);
+    if (titleMatch) meta.title = titleMatch[1].trim();
+
+    // Meta Description
+    const descMatch = /<meta\s+name=["']description["']\s+content=["'](.*?)["']/i.exec(html);
+    if (descMatch) meta.description = descMatch[1].trim();
+
+    // Copyright Year
+    const copyrightMatch = /&copy;|©/i.exec(html);
+    if (copyrightMatch) {
+      const surrounding = html.substring(copyrightMatch.index, copyrightMatch.index + 50);
+      const yearMatch = /(20\d{2})/g.exec(surrounding);
+      if (yearMatch) meta.copyright_year = parseInt(yearMatch[1]);
+    }
+
+    // Generator / CMS
+    if (/wp-content|wordpress/i.test(html)) meta.technologies.push('WordPress');
+    if (/wix\.com|wix-image/i.test(html)) meta.technologies.push('Wix');
+    if (/squarespace/i.test(html)) meta.technologies.push('Squarespace');
+    if (/shopify/i.test(html)) meta.technologies.push('Shopify');
+    if (/react|next\.js/i.test(html)) meta.technologies.push('React');
+    if (/bootstrap/i.test(html)) meta.technologies.push('Bootstrap');
+
+    // Responsiveness (simple check for viewport meta)
+    if (/<meta\s+name=["']viewport["']/i.test(html)) {
+      meta.is_responsive = true;
+    }
+
+  } catch (e) {
+    // Ignore parsing errors
+  }
+
+  return meta;
+}
 
   // 1. mailto: links — highest priority
   const mailtoRegex = /mailto:([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/gi;

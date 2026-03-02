@@ -29,64 +29,62 @@ async function scoreLead(lead) {
 
 function buildScoringPrompt(lead) {
   const reviews = (lead.source_reviews || []).map(r => `"${r.text}"`).join('\n');
-  return `You are a B2B sales analyst scoring leads for a web design agency.
+  const webData = lead.website_data || {};
+  
+  return `You are an expert Web Design Consultant analyzing a potential client.
+  
+ANALYZE THIS LEAD FOR A WEBSITE REDESIGN PITCH.
 
-Evaluate this business lead and provide a JSON score.
-
-LEAD DATA:
-- Business: ${lead.business_name}
+BUSINESS INFO:
+- Name: ${lead.business_name}
 - Category: ${lead.category}
 - Location: ${lead.city}, ${lead.state}
-- Rating: ${lead.rating} stars
-- Review count: ${lead.review_count}
-- Website status: ${lead.website_status} (none = no website)
-- Has owner email: ${lead.owner_email ? 'yes' : 'no'}
-- Phone available: ${lead.phone ? 'yes' : 'no'}
+- Current Website: ${lead.website_url || 'None'}
+- Rating: ${lead.rating} (${lead.review_count} reviews)
 
-RECENT CUSTOMER REVIEWS:
-${reviews || 'No reviews available'}
+WEBSITE SIGNAL ANALYSIS:
+- Copyright Year: ${webData.copyright_year || 'Unknown'} (Older than 2023 indicates neglect)
+- CMS/Tech: ${(webData.technologies || []).join(', ') || 'Unknown'}
+- Mobile Viewport Found: ${webData.is_responsive ? 'Yes' : 'NO (Critical Issue)'}
+- Meta Description: "${webData.description || 'Missing'}"
+- Page Title: "${webData.title || 'Missing'}"
 
-Score this lead on these dimensions (0-30, 0-25, 0-25, 0-20):
-1. pain_signal (0-30): Do reviews mention customers struggling to find/contact/book? Evidence of lost business?
-2. revenue_proxy (0-25): Estimated business size/revenue based on niche + review count + location?
-3. owner_reachability (0-25): Can we reach the decision maker? Email, phone, social?
-4. competitive_gap (0-20): How much does NOT having a website hurt them in this niche?
+CUSTOMER REVIEWS (Look for "confusing", "hard to navigate", "outdated"):
+${reviews || 'No availability'}
 
-Respond ONLY with valid JSON (no markdown):
+Score this lead (0-100) on likelihood to buy a $3,000+ website redesign.
+
+Respond ONLY with valid JSON:
 {
-  "pain_signal": <0-30>,
-  "revenue_proxy": <0-25>,
-  "owner_reachability": <0-25>,
-  "competitive_gap": <0-20>,
-  "total": <sum of above>,
-  "key_insight": "<one sentence about the strongest pitch angle>",
-  "review_hook": "<specific phrase or detail from reviews to use in outreach>"
+  "design_pain": <0-40, is the site ugly/broken/non-mobile?>,
+  "business_viability": <0-30, do they have money? check review count>,
+  "technical_debt": <0-30, old copyright? missing meta? no SSL?>,
+  "total": <sum>,
+  "key_insight": "<one punchy sentence about WHY they need a redesign>",
+  "pitch_angle": "<specific hook: 'Your 2018 copyright makes you look closed' or 'Mobile users cannot read your menu'>"
 }`;
 }
 
 function parseScoringResponse(text, lead) {
   try {
-    // Strip any markdown code fences if present
     const clean = text.replace(/```json?/gi, '').replace(/```/g, '').trim();
     const data = JSON.parse(clean);
 
     const total = Math.min(100, Math.max(0,
-      (data.pain_signal || 0) +
-      (data.revenue_proxy || 0) +
-      (data.owner_reachability || 0) +
-      (data.competitive_gap || 0)
+      (data.design_pain || 0) +
+      (data.business_viability || 0) +
+      (data.technical_debt || 0)
     ));
 
     return {
       score: total,
       breakdown: {
-        pain_signal:         data.pain_signal || 0,
-        revenue_proxy:       data.revenue_proxy || 0,
-        owner_reachability:  data.owner_reachability || 0,
-        competitive_gap:     data.competitive_gap || 0,
+        design_pain:         data.design_pain || 0,
+        business_viability:  data.business_viability || 0,
+        technical_debt:      data.technical_debt || 0,
       },
-      notes:       data.key_insight || '',
-      review_hook: data.review_hook || '',
+      notes:       (data.key_insight || '') + (data.pitch_angle ? `\n\n🎯 PITCH: ${data.pitch_angle}` : ''),
+      review_hook: data.pitch_angle || '',
       tier:        getQueueTier(total),
     };
   } catch {
@@ -99,31 +97,28 @@ function parseScoringResponse(text, lead) {
  */
 function basicScore(lead) {
   let score = 0;
+  const wd = lead.website_data || {};
 
-  // Rating quality
-  if (lead.rating >= 4.5) score += 20;
-  else if (lead.rating >= 4.0) score += 15;
+  // 1. Website Status (Biggest Factor)
+  if (lead.website_status === 'none' || !lead.website_url) score += 40;
+  else if (lead.website_status === 'weak') score += 25;
 
-  // Review volume
-  if (lead.review_count >= 100) score += 20;
-  else if (lead.review_count >= 50) score += 15;
-  else if (lead.review_count >= 25) score += 10;
+  // 2. Technical Debt (from scraper)
+  if (wd.is_responsive === false) score += 30; // Mobile responsiveness is key
+  if (wd.copyright_year && wd.copyright_year < 2022) score += 15;
+  if (!wd.description) score += 5; // SEO missing
 
-  // Contact availability
-  if (lead.owner_email) score += 20;
-  if (lead.phone) score += 10;
+  // 3. Business Viability
+  if (lead.rating >= 4.0) score += 10;
+  if (lead.review_count >= 20) score += 10;
 
-  // Website status (none = more urgent)
-  if (lead.website_status === 'none') score += 20;
-  else if (lead.website_status === 'weak') score += 10;
-
-  // Owner name found
-  if (lead.owner_name) score += 10;
+  // 4. Contact Info
+  if (lead.owner_email || (lead.scraped_emails && lead.scraped_emails.length > 0)) score += 10;
 
   return {
     score: Math.min(100, score),
-    breakdown: { rule_based: score },
-    notes: 'Scored by rule engine (no AI key)',
+    breakdown: { rule_based: score, tech_debt: wd.is_responsive === false ? 30 : 0 },
+    notes: !lead.website_url ? 'No website found' : 'Scored by rule engine',
     review_hook: '',
     tier: getQueueTier(score),
   };
