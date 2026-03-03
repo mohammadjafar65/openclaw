@@ -7,7 +7,11 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "setup": "node scripts/setup.js",
-    "worker": "node workers/cron.js"
+    "worker": "node workers/cron.js",
+    "frontend:install": "cd frontend && npm install",
+    "frontend:dev": "cd frontend && npm start",
+    "frontend:build": "cd frontend && npm run build && xcopy /E /I /Y build ..\\public",
+    "build": "npm run frontend:build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.9",

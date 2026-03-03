@@ -11,6 +11,15 @@ const { createSequenceForLead } = require('../src/services/outreach/sequenceMana
 const { processPendingEmails } = require('../src/services/outreach/emailService');
 const { query, execute, queryOne } = require('../src/config/database');
 
+// New v2 services
+let websiteAuditEngine, leadScoringEngine;
+try {
+  websiteAuditEngine = require('../src/services/audit/websiteAuditEngine');
+  leadScoringEngine  = require('../src/services/scoring/leadScoringEngine');
+} catch (e) {
+  console.warn('[Cron] Optional services not loaded:', e.message);
+}
+
 function startCronJobs() {
   // ── Process job queue every 2 minutes ─────────────────
   cron.schedule('*/2 * * * *', async () => {
@@ -27,6 +36,84 @@ function startCronJobs() {
     }
   });
 
+  // ── Auto-audit un-audited leads every 10 minutes ──────
+  cron.schedule('*/10 * * * *', async () => {
+    if (!websiteAuditEngine) return;
+    try {
+      const unaudited = await query(
+        `SELECT id FROM leads
+         WHERE has_website = 1
+           AND audit_classification IS NULL
+           AND website_url IS NOT NULL AND website_url != ''
+         ORDER BY created_at ASC LIMIT 5`
+      );
+      if (unaudited.length === 0) return;
+      console.log(`[Cron/Audit] Processing ${unaudited.length} un-audited leads`);
+      const ids = unaudited.map(l => l.id);
+      await websiteAuditEngine.batchAudit(ids, (progress) => {
+        console.log(`[Cron/Audit] ${progress.completed}/${progress.total} done`);
+      });
+    } catch (err) {
+      console.error('[Cron/Audit]', err.message);
+    }
+  });
+
+  // ── Re-score leads missing composite score every 15 min ─
+  cron.schedule('*/15 * * * *', async () => {
+    if (!leadScoringEngine) return;
+    try {
+      const unscored = await query(
+        `SELECT id FROM leads
+         WHERE lead_score IS NULL OR lead_score = 0
+         ORDER BY created_at DESC LIMIT 10`
+      );
+      if (unscored.length === 0) return;
+      console.log(`[Cron/Score] Scoring ${unscored.length} leads`);
+      for (const lead of unscored) {
+        try {
+          await leadScoringEngine.scoreLead(lead.id);
+        } catch (e) {
+          console.error(`[Cron/Score] Lead #${lead.id}:`, e.message);
+        }
+      }
+    } catch (err) {
+      console.error('[Cron/Score]', err.message);
+    }
+  });
+
+  // ── Check for new replies every 30 minutes ────────────
+  cron.schedule('*/30 * * * *', async () => {
+    try {
+      // Check outreach_messages that were sent but not yet tracked for replies
+      const pendingReply = await query(
+        `SELECT om.id, om.lead_id, om.campaign_id
+         FROM outreach_messages om
+         WHERE om.status = 'sent'
+           AND om.sent_at < DATE_SUB(NOW(), INTERVAL 1 HOUR)
+           AND om.sent_at > DATE_SUB(NOW(), INTERVAL 7 DAY)
+         LIMIT 20`
+      );
+      if (pendingReply.length > 0) {
+        console.log(`[Cron/Reply] Checking ${pendingReply.length} messages for replies`);
+      }
+      // Note: Actual IMAP reply checking would be implemented when IMAP credentials are configured
+    } catch (err) {
+      console.error('[Cron/Reply]', err.message);
+    }
+  });
+
+  // ── Full score recalculation daily at 2 AM ─────────────
+  cron.schedule('0 2 * * *', async () => {
+    if (!leadScoringEngine) return;
+    try {
+      console.log('[Cron/Score] Starting daily full recalculation...');
+      const result = await leadScoringEngine.recalculateAllScores();
+      console.log(`[Cron/Score] Recalculated ${result.total} leads, ${result.errors} errors`);
+    } catch (err) {
+      console.error('[Cron/Score-Daily]', err.message);
+    }
+  });
+
   // ── Clean up old completed jobs once a day ─────────────
   cron.schedule('0 3 * * *', async () => {
     const { clearCompleted } = require('../src/services/queue/jobQueue');
@@ -34,7 +121,23 @@ function startCronJobs() {
     console.log('[Cron/Cleanup] Old jobs cleared');
   });
 
-  console.log('[Cron] All scheduled tasks active');
+  // ── Log activity summary once a day ────────────────────
+  cron.schedule('0 4 * * *', async () => {
+    try {
+      const [stats] = await query(`
+        SELECT
+          (SELECT COUNT(*) FROM leads WHERE DATE(created_at) = CURDATE()) as leads_today,
+          (SELECT COUNT(*) FROM leads WHERE audit_classification IS NOT NULL AND DATE(updated_at) = CURDATE()) as audits_today,
+          (SELECT COUNT(*) FROM outreach_messages WHERE DATE(sent_at) = CURDATE()) as emails_today,
+          (SELECT COUNT(*) FROM leads WHERE stage = 'won' AND DATE(updated_at) = CURDATE()) as won_today
+      `);
+      console.log(`[Cron/Summary] Daily: ${stats.leads_today} leads, ${stats.audits_today} audits, ${stats.emails_today} emails, ${stats.won_today} won`);
+    } catch (err) {
+      console.error('[Cron/Summary]', err.message);
+    }
+  });
+
+  console.log('[Cron] All scheduled tasks active (including audit, scoring, reply workers)');
 }
 
 /**

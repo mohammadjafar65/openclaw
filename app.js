@@ -24,7 +24,10 @@ app.use(morgan('combined'));
 app.set('trust proxy', 1);
 
 // ── STATIC FILES ─────────────────────────────────────────
+// Serve React build (Carbon Design System frontend)
+app.use(`${BASE_URI}/static`, express.static(path.join(__dirname, 'public/static')));
 app.use(`${BASE_URI}/assets`, express.static(path.join(__dirname, 'public/assets')));
+app.use('/static', express.static(path.join(__dirname, 'public/static')));
 app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 
 // ══════════════════════════════════════════════════════════
@@ -130,25 +133,47 @@ app.get('/openclaw/reset-oc-9f2a8b', async (req, res) => {
 
 // ── API ROUTES ───────────────────────────────────────────
 function mountRoutes(prefix) {
-  app.use(`${prefix}/auth`,      require('./src/routes/api/auth'));
-  app.use(`${prefix}/campaigns`, require('./src/routes/api/campaigns'));
-  app.use(`${prefix}/leads`,     require('./src/routes/api/leads'));
-  app.use(`${prefix}/scraper`,   require('./src/routes/api/scraper'));
-  app.use(`${prefix}/outreach`,  require('./src/routes/api/outreach'));
-  app.use(`${prefix}/dashboard`, require('./src/routes/api/dashboard'));
-  app.use(`${prefix}/settings`,  require('./src/routes/api/settings'));
-  app.use(`${prefix}/track`,     require('./src/routes/api/track'));
+  // Core routes (existing)
+  app.use(`${prefix}/auth`,        require('./src/routes/api/auth'));
+  app.use(`${prefix}/campaigns`,   require('./src/routes/api/campaigns'));
+  app.use(`${prefix}/leads`,       require('./src/routes/api/leads'));
+  app.use(`${prefix}/scraper`,     require('./src/routes/api/scraper'));
+  app.use(`${prefix}/outreach`,    require('./src/routes/api/outreach'));
+  app.use(`${prefix}/dashboard`,   require('./src/routes/api/dashboard'));
+  app.use(`${prefix}/settings`,    require('./src/routes/api/settings'));
+  app.use(`${prefix}/track`,       require('./src/routes/api/track'));
+
+  // New module routes
+  app.use(`${prefix}/audit`,       require('./src/routes/api/audit'));
+  app.use(`${prefix}/crm`,         require('./src/routes/api/crm'));
+  app.use(`${prefix}/personalize`, require('./src/routes/api/personalize'));
+  app.use(`${prefix}/compliance`,  require('./src/routes/api/compliance'));
+  app.use(`${prefix}/team`,        require('./src/routes/api/team'));
+  app.use(`${prefix}/analytics`,   require('./src/routes/api/analytics'));
 }
 
 mountRoutes(`${BASE_URI}/api`);
 mountRoutes('/api');
 
-// ── SERVE DASHBOARD ───────────────────────────────────────
-app.get(`${BASE_URI}`, (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
-app.get(`${BASE_URI}/`, (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
-app.get(`${BASE_URI}/*`, (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
+// ── SERVE REACT SPA (Carbon Design System) ──────────────
+// Serve static files from React build
+app.use(`${BASE_URI}`, express.static(path.join(__dirname, 'public'), { index: false }));
+app.use('/', express.static(path.join(__dirname, 'public'), { index: false }));
+
+// SPA catch-all: serve index.html for all non-API routes
+const serveIndex = (req, res) => res.sendFile(path.join(__dirname, 'public/index.html'));
+app.get(`${BASE_URI}`, serveIndex);
+app.get(`${BASE_URI}/`, serveIndex);
+app.get(`${BASE_URI}/*`, (req, res, next) => {
+  // Don't catch API routes
+  if (req.path.includes('/api/')) return next();
+  serveIndex(req, res);
+});
 app.get('/', (req, res) => res.redirect(BASE_URI + '/'));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
+app.get('*', (req, res, next) => {
+  if (req.path.includes('/api/')) return next();
+  serveIndex(req, res);
+});
 
 // ── ERROR HANDLER ─────────────────────────────────────────
 app.use((err, req, res, next) => {

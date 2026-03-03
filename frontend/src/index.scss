@@ -1,0 +1,366 @@
+/* ══════════════════════════════════════════════════════════
+   OpenClaw — Carbon Design System Global Styles
+   Theme: g100 (dark) + White (light), IBM Plex Sans
+   ══════════════════════════════════════════════════════════ */
+
+/* Carbon Tokens */
+@use '@carbon/react';
+
+/* ── CSS Variables (Carbon-aligned) ─────────────────────── */
+:root {
+  --oc-brand-primary: #6929c4;    /* Purple 60 */
+  --oc-brand-accent: #0f62fe;     /* Blue 60 */
+  --oc-brand-success: #24a148;    /* Green 50 */
+  --oc-brand-warning: #f1c21b;    /* Yellow 30 */
+  --oc-brand-danger: #da1e28;     /* Red 60 */
+  --oc-brand-info: #4589ff;       /* Blue 50 */
+
+  --oc-hot: #da1e28;
+  --oc-warm: #f1c21b;
+  --oc-cold: #4589ff;
+  --oc-disqualified: #6f6f6f;
+
+  --oc-sidebar-width: 256px;
+  --oc-sidebar-collapsed: 48px;
+  --oc-header-height: 48px;
+}
+
+/* ── Global Reset ───────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.oc-app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.oc-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.oc-main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background: var(--cds-background, #f4f4f4);
+  min-height: 0;
+}
+
+/* Carbon dark theme override class */
+.oc-dark .oc-main-content {
+  background: #161616;
+}
+
+/* ── Sidebar Overrides ─────────────────────────────────── */
+.oc-sidebar .cds--side-nav {
+  width: var(--oc-sidebar-width);
+  background: #262626;
+}
+
+.oc-sidebar .cds--side-nav__link {
+  font-size: 0.875rem;
+}
+
+.oc-sidebar .cds--side-nav__link--current {
+  border-left: 3px solid var(--oc-brand-primary);
+  background: rgba(105, 41, 196, 0.1);
+}
+
+/* ── Page Header ────────────────────────────────────────── */
+.oc-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.oc-page-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--cds-text-primary, #161616);
+}
+
+.oc-page-header p {
+  color: var(--cds-text-secondary, #525252);
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+}
+
+/* ── KPI Cards ──────────────────────────────────────────── */
+.oc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.oc-kpi-card {
+  padding: 1.25rem;
+  border-radius: 0;
+  border-left: 4px solid var(--oc-brand-primary);
+  background: var(--cds-layer-01, #fff);
+  position: relative;
+}
+
+.oc-kpi-card__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.32px;
+  color: var(--cds-text-secondary, #525252);
+  margin-bottom: 0.5rem;
+}
+
+.oc-kpi-card__value {
+  font-size: 2rem;
+  font-weight: 300;
+  color: var(--cds-text-primary, #161616);
+  line-height: 1.2;
+}
+
+.oc-kpi-card__delta {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.oc-kpi-card__delta--up {
+  color: var(--oc-brand-success);
+}
+
+.oc-kpi-card__delta--down {
+  color: var(--oc-brand-danger);
+}
+
+/* ── Priority Badges ────────────────────────────────────── */
+.oc-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.32px;
+}
+
+.oc-priority-badge--hot {
+  background: rgba(218, 30, 40, 0.15);
+  color: #da1e28;
+}
+
+.oc-priority-badge--warm {
+  background: rgba(241, 194, 27, 0.15);
+  color: #8a6d00;
+}
+
+.oc-priority-badge--cold {
+  background: rgba(69, 137, 255, 0.15);
+  color: #4589ff;
+}
+
+.oc-priority-badge--disqualified {
+  background: rgba(111, 111, 111, 0.15);
+  color: #6f6f6f;
+}
+
+/* ── Kanban Board ───────────────────────────────────────── */
+.oc-kanban {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+.oc-kanban__column {
+  min-width: 280px;
+  max-width: 320px;
+  background: var(--cds-layer-01, #fff);
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.oc-kanban__column-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--cds-border-subtle, #e0e0e0);
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.oc-kanban__column-count {
+  background: var(--cds-layer-02, #e0e0e0);
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.oc-kanban__cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+  max-height: 60vh;
+}
+
+.oc-kanban__card {
+  background: var(--cds-layer-02, #f4f4f4);
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease;
+}
+
+.oc-kanban__card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.oc-kanban__card--hot { border-left-color: var(--oc-hot); }
+.oc-kanban__card--warm { border-left-color: var(--oc-warm); }
+.oc-kanban__card--cold { border-left-color: var(--oc-cold); }
+
+.oc-kanban__card-title {
+  font-weight: 500;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.oc-kanban__card-meta {
+  font-size: 0.75rem;
+  color: var(--cds-text-secondary, #525252);
+}
+
+/* ── Score Gauge ────────────────────────────────────────── */
+.oc-score-gauge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.oc-score-gauge--high {
+  background: rgba(36, 161, 72, 0.15);
+  color: #24a148;
+}
+
+.oc-score-gauge--medium {
+  background: rgba(241, 194, 27, 0.15);
+  color: #8a6d00;
+}
+
+.oc-score-gauge--low {
+  background: rgba(218, 30, 40, 0.15);
+  color: #da1e28;
+}
+
+/* ── Empty States ───────────────────────────────────────── */
+.oc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--cds-text-secondary, #525252);
+}
+
+.oc-empty-state svg {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 1.5rem;
+  opacity: 0.4;
+}
+
+.oc-empty-state h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--cds-text-primary, #161616);
+}
+
+/* ── Audit Classification Tags ──────────────────────────── */
+.oc-audit-tag--none {
+  --cds-tag-background-red: rgba(218, 30, 40, 0.15);
+  --cds-tag-color-red: #da1e28;
+}
+
+.oc-audit-tag--outdated {
+  --cds-tag-background-magenta: rgba(238, 83, 150, 0.15);
+  --cds-tag-color-magenta: #d02670;
+}
+
+.oc-audit-tag--average {
+  --cds-tag-background-warm-gray: rgba(141, 141, 141, 0.15);
+  --cds-tag-color-warm-gray: #6f6f6f;
+}
+
+.oc-audit-tag--strong {
+  --cds-tag-background-green: rgba(36, 161, 72, 0.15);
+  --cds-tag-color-green: #24a148;
+}
+
+/* ── Responsive ─────────────────────────────────────────── */
+@media (max-width: 672px) {
+  .oc-main-content {
+    padding: 1rem;
+  }
+
+  .oc-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .oc-page-header h1 {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 1056px) {
+  .oc-sidebar .cds--side-nav {
+    width: var(--oc-sidebar-collapsed);
+  }
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cds-border-subtle, #c6c6c6);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cds-border-strong, #8d8d8d);
+}
