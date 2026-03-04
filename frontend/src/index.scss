@@ -64,6 +64,8 @@ body {
   padding: 2rem;
   background: var(--cds-background, #f4f4f4);
   min-height: 0;
+  margin-left: var(--oc-sidebar-width);
+  transition: margin-left 0.15s ease;
 }
 
 /* Carbon dark theme override class */
@@ -343,6 +345,10 @@ body {
 @media (max-width: 1056px) {
   .oc-sidebar .cds--side-nav {
     width: var(--oc-sidebar-collapsed);
+  }
+
+  .oc-main-content {
+    margin-left: var(--oc-sidebar-collapsed);
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "files": {
-    "main.css": "/openclaw/static/css/main.bb99b965.css",
+    "main.css": "/openclaw/static/css/main.06b4082d.css",
     "main.js": "/openclaw/static/js/main.0108d533.js",
     "static/js/93.3909bc1d.chunk.js": "/openclaw/static/js/93.3909bc1d.chunk.js",
     "static/js/40.f062dbe1.chunk.js": "/openclaw/static/js/40.f062dbe1.chunk.js",
@@ -107,7 +107,7 @@
     "static/media/IBMPlexMono-Light-Latin3.woff2": "/openclaw/static/media/IBMPlexMono-Light-Latin3.8a014da16bb5df1e9830.woff2",
     "static/media/IBMPlexMono-Regular-Latin3.woff2": "/openclaw/static/media/IBMPlexMono-Regular-Latin3.cacfd1d7dbd14067b970.woff2",
     "index.html": "/openclaw/index.html",
-    "main.bb99b965.css.map": "/openclaw/static/css/main.bb99b965.css.map",
+    "main.06b4082d.css.map": "/openclaw/static/css/main.06b4082d.css.map",
     "main.0108d533.js.map": "/openclaw/static/js/main.0108d533.js.map",
     "93.3909bc1d.chunk.js.map": "/openclaw/static/js/93.3909bc1d.chunk.js.map",
     "40.f062dbe1.chunk.js.map": "/openclaw/static/js/40.f062dbe1.chunk.js.map",
@@ -125,7 +125,7 @@
     "797.ffef2f1b.chunk.js.map": "/openclaw/static/js/797.ffef2f1b.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.bb99b965.css",
+    "static/css/main.06b4082d.css",
     "static/js/main.0108d533.js"
   ]
 }
